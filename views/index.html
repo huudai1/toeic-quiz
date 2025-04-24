@@ -240,7 +240,7 @@
             <label class="block mt-4">Dãy đáp án (C,D,A,B,...):</label>
             <textarea id="array-answers-part5" class="w-full p-2 border rounded" rows="3"></textarea>
             <button type="button" onclick="prevQuizPart(4)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mt-4">Quay lại</button>
-            <button type="button onclick="nextQuizPart(5)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4">Tiếp theo</button>
+            <button type="button" onclick="nextQuizPart(5)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4">Tiếp theo</button>
           </div>
           <div id="quiz-part6" class="quiz-part hidden">
             <h2 class="text-xl font-bold">Part 6 (16 câu)</h2>
@@ -324,6 +324,7 @@
 
     // Show Admin Login
     function showAdminLogin() {
+      console.log("showAdminLogin called");
       welcomeScreen.classList.add("hidden");
       adminLogin.classList.remove("hidden");
       studentLogin.classList.add("hidden");
@@ -331,6 +332,7 @@
 
     // Show Student Login
     function showStudentLogin() {
+      console.log("showStudentLogin called");
       welcomeScreen.classList.add("hidden");
       adminLogin.classList.add("hidden");
       studentLogin.classList.remove("hidden");
@@ -566,9 +568,8 @@
         const quizzes = await res.json();
         quizList.innerHTML = "";
         if (quizzes.length === 0) {
-          quizList.innerHTML = "<p>Chưa có đề thi nào.</新能源
-
-        if (isAdmin) {
+          quizList.innerHTML = "<p>Chưa có đề thi nào.</p>";
+        } else if (isAdmin) {
           quizList.innerHTML = "<p>Chưa có đề thi nào.</p>";
         } else {
           quizzes.forEach(quiz => {
