@@ -66,6 +66,7 @@ loadQuizzes();
 let currentQuizId = null;
 let submissions = [];
 let clients = new Set();
+let quizTimeLimit = 7200; // Default 120 minutes in seconds
 
 // WebSocket server
 const wss = new ws.Server({ noServer: true });
@@ -73,11 +74,13 @@ wss.on('connection', (socket) => {
   clients.add(socket);
   socket.send(JSON.stringify({ type: 'participantCount', count: clients.size }));
   socket.send(JSON.stringify({ type: 'submittedCount', count: submissions.length }));
+  socket.send(JSON.stringify({ type: 'quizStatus', quizExists: currentQuizId !== null }));
 
   socket.on('message', (message) => {
     const msg = JSON.parse(message);
     if (msg.type === 'start') {
-      wss.clients.forEach(client => client.send(JSON.stringify({ type: 'start' })));
+      quizTimeLimit = msg.timeLimit || 7200; // Use Admin's time limit if provided
+      wss.clients.forEach(client => client.send(JSON.stringify({ type: 'start', timeLimit: quizTimeLimit })));
     }
     if (msg.type === 'end') {
       wss.clients.forEach(client => client.send(JSON.stringify({ type: 'end' })));
@@ -108,7 +111,15 @@ app.get('/quiz-status', (req, res) => {
 
 app.get('/quizzes', async (req, res) => {
   await loadQuizzes();
-  res.json(quizzes.map(quiz => ({ quizId: quiz.quizId, quizName: quiz.quizName || `Đề ${quiz.quizId}` })));
+  const userEmail = req.query.email;
+  if (userEmail) {
+    // For Admin: Only return quizzes created by this user
+    const filteredQuizzes = quizzes.filter(quiz => quiz.createdBy === userEmail);
+    res.json(filteredQuizzes.map(quiz => ({ quizId: quiz.quizId, quizName: quiz.quizName || `Đề ${quiz.quizId}` })));
+  } else {
+    // For Students: Return all quizzes
+    res.json(quizzes.map(quiz => ({ quizId: quiz.quizId, quizName: quiz.quizName || `Đề ${quiz.quizId}` })));
+  }
 });
 
 app.get('/quiz-audio', (req, res) => {
@@ -178,7 +189,14 @@ app.post('/save-quiz', upload.fields([
   { name: 'images-part7' },
 ]), async (req, res) => {
   const quizId = Date.now().toString();
-  const quiz = { quizId, quizName: req.body.quizName || `Đề ${quizId}`, audio: '', images: {}, answerKey: {} };
+  const quiz = {
+    quizId,
+    quizName: req.body.quizName || `Đề ${quizId}`,
+    createdBy: req.body.createdBy, // Add createdBy field
+    audio: '',
+    images: {},
+    answerKey: {}
+  };
 
   if (req.files['audio']) {
     quiz.audio = `/uploads/audio/${req.files['audio'][0].filename}`;

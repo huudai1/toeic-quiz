@@ -60,150 +60,145 @@
       </form>
     </div>
 
-    <!-- Admin Controls -->
-    <div id="admin-controls" class="mb-6 hidden">
-      <h2 class="text-xl font-bold mb-4">Quản lý đề thi</h2>
-      <div id="participant-count" class="text-lg font-semibold mb-4"></div>
-      <div id="submitted-count" class="text-lg font-semibold mb-4"></div>
-      <p id="quiz-status" class="text-lg font-semibold mb-4"></p>
-
-      <!-- Admin Options After Login -->
-      <div id="admin-options" class="mb-6 hidden">
-        <h3 class="text-lg font-semibold mb-2">Chọn hành động:</h3>
+    <!-- Quiz List Screen (for both Admin and Student) -->
+    <div id="quiz-list-screen" class="mb-6 hidden">
+      <h2 class="text-xl font-bold mb-4">Danh sách đề thi</h2>
+      <div id="quiz-status" class="text-lg font-semibold mb-4"></div>
+      <div id="quiz-list" class="space-y-2"></div>
+      <div id="admin-options" class="mt-4 hidden">
         <button onclick="createNewQuiz()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mr-2">Tạo đề mới</button>
-        <button onclick="showUploadQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Nhập file quizzes.json</button>
+        <button onclick="showUploadQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Nhập file quizzes.json</button>
+        <button onclick="downloadQuizzes()" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 mr-2">Tải đề xuống</button>
       </div>
-
-      <!-- Upload Quizzes -->
-      <div id="upload-quizzes" class="mb-6 hidden">
-        <h3 class="text-lg font-semibold mb-2">Nhập file quizzes.json</h3>
-        <input type="file" id="quizzes-file" accept=".json" class="mb-4">
-        <button onclick="uploadQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Tải lên</button>
-        <button onclick="backToOptions()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
-        <div id="upload-files-section" class="mt-4 hidden">
-          <h4 class="text-lg font-semibold mb-2">Tải lên các file nghe và ảnh</h4>
-          <div id="upload-files-list" class="space-y-2"></div>
-          <button onclick="uploadFiles()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mt-4">Xác nhận</button>
+      <div id="admin-controls" class="mt-4 hidden">
+        <div id="participant-count" class="text-lg font-semibold mb-2"></div>
+        <div id="submitted-count" class="text-lg font-semibold mb-2"></div>
+        <button id="startBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2 hidden">Bắt đầu làm bài</button>
+        <button id="endBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 mr-2 hidden">Kết thúc</button>
+        <button id="reuseBtn" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 mr-2 hidden">Dùng lại đề cho lớp mới</button>
+        <div id="results-table" class="mt-4 hidden">
+          <h3 class="text-lg font-bold mb-2">Kết quả</h3>
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="bg-gray-200">
+                <th class="border p-2">Tên</th>
+                <th class="border p-2">Điểm</th>
+                <th class="border p-2">Thời gian nộp</th>
+              </tr>
+            </thead>
+            <tbody id="results-body"></tbody>
+          </table>
         </div>
-      </div>
-
-      <!-- Quiz Selection -->
-      <div id="quiz-selection" class="mb-6 hidden">
-        <h3 class="text-lg font-semibold mb-2">Danh sách đề thi</h3>
-        <div id="quiz-list" class="space-y-2"></div>
-        <button onclick="downloadQuizzes()" class="mt-4 bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 mr-2">Tải đề xuống</button>
-        <button onclick="backToOptions()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
-        <div id="download-files-section" class="mt-4 hidden">
-          <h4 class="text-lg font-semibold mb-2">Tải file nghe và ảnh</h4>
-          <div id="download-files-list" class="space-y-2"></div>
-        </div>
-      </div>
-
-      <!-- Step 1: Quiz Name and Upload Audio -->
-      <div id="admin-step-audio" class="admin-step hidden">
-        <h3 class="text-lg font-semibold mb-2">Bước 1: Đặt tên đề và tải file nghe (Part 1-4)</h3>
-        <label class="block mb-2">Tên đề thi:</label>
-        <input type="text" id="quiz-name" class="w-full p-2 border rounded mb-4" placeholder="Nhập tên đề thi (ví dụ: Đề thi TOEIC tháng 4)" required>
-        <label class="block mb-2">File nghe (Part 1-4):</label>
-        <input type="file" id="audio-file" accept="audio/mpeg" class="mb-4">
-        <button onclick="nextAdminStep(1)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Tiếp theo</button>
-        <button onclick="backToOptions()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
-      </div>
-
-      <!-- Step 2: Part 1 (Images and Answers) -->
-      <div id="admin-step-part1" class="admin-step hidden">
-        <h3 class="text-lg font-semibold mb-2">Bước 2: Part 1 (6 câu)</h3>
-        <label class="block mb-2">Ảnh cho Part 1:</label>
-        <input type="file" id="images-part1" multiple accept="image/*" class="mb-4">
-        <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
-        <textarea id="answer-key-part1" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 6 đáp án, ví dụ: A,D,C,B,A,C"></textarea>
-        <button onclick="prevAdminStep(1)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
-        <button onclick="nextAdminStep(2)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-      </div>
-
-      <!-- Step 3: Part 2 -->
-      <div id="admin-step-part2" class="admin-step hidden">
-        <h3 class="text-lg font-semibold mb-2">Bước 3: Part 2 (25 câu)</h3>
-        <label class="block mb-2">Ảnh cho Part 2:</label>
-        <input type="file" id="images-part2" multiple accept="image/*" class="mb-4">
-        <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
-        <textarea id="answer-key-part2" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 25 đáp án, ví dụ: A,D,C,B,..."></textarea>
-        <button onclick="prevAdminStep(2)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
-        <button onclick="nextAdminStep(3)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-      </div>
-
-      <!-- Step 4: Part 3 -->
-      <div id="admin-step-part3" class="admin-step hidden">
-        <h3 class="text-lg font-semibold mb-2">Bước 4: Part 3 (39 câu)</h3>
-        <label class="block mb-2">Ảnh cho Part 3:</label>
-        <input type="file" id="images-part3" multiple accept="image/*" class="mb-4">
-        <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
-        <textarea id="answer-key-part3" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 39 đáp án, ví dụ: A,D,C,B,..."></textarea>
-        <button onclick="prevAdminStep(3)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
-        <button onclick="nextAdminStep(4)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-      </div>
-
-      <!-- Step 5: Part 4 -->
-      <div id="admin-step-part4" class="admin-step hidden">
-        <h3 class="text-lg font-semibold mb-2">Bước 5: Part 4 (30 câu)</h3>
-        <label class="block mb-2">Ảnh cho Part 4:</label>
-        <input type="file" id="images-part4" multiple accept="image/*" class="mb-4">
-        <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
-        <textarea id="answer-key-part4" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 30 đáp án, ví dụ: A,D,C,B,..."></textarea>
-        <button onclick="prevAdminStep(4)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
-        <button onclick="nextAdminStep(5)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-      </div>
-
-      <!-- Step 6: Part 5 -->
-      <div id="admin-step-part5" class="admin-step hidden">
-        <h3 class="text-lg font-semibold mb-2">Bước 6: Part 5 (30 câu)</h3>
-        <label class="block mb-2">Ảnh cho Part 5:</label>
-        <input type="file" id="images-part5" multiple accept="image/*" class="mb-4">
-        <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
-        <textarea id="answer-key-part5" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 30 đáp án, ví dụ: A,D,C,B,..."></textarea>
-        <button onclick="prevAdminStep(5)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
-        <button onclick="nextAdminStep(6)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-      </div>
-
-      <!-- Step 7: Part 6 -->
-      <div id="admin-step-part6" class="admin-step hidden">
-        <h3 class="text-lg font-semibold mb-2">Bước 7: Part 6 (16 câu)</h3>
-        <label class="block mb-2">Ảnh cho Part 6:</label>
-        <input type="file" id="images-part6" multiple accept="image/*" class="mb-4">
-        <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
-        <textarea id="answer-key-part6" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 16 đáp án, ví dụ: A,D,C,B,..."></textarea>
-        <button onclick="prevAdminStep(6)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
-        <button onclick="nextAdminStep(7)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-      </div>
-
-      <!-- Step 8: Part 7 -->
-      <div id="admin-step-part7" class="admin-step hidden">
-        <h3 class="text-lg font-semibold mb-2">Bước 8: Part 7 (54 câu)</h3>
-        <label class="block mb-2">Ảnh cho Part 7:</label>
-        <input type="file" id="images-part7" multiple accept="image/*" class="mb-4">
-        <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
-        <textarea id="answer-key-part7" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 54 đáp án, ví dụ: A,D,C,B,..."></textarea>
-        <button onclick="prevAdminStep(7)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
-        <button onclick="saveQuiz()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Lưu đề thi</button>
-      </div>
-
-      <button id="startBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 hidden">Bắt đầu làm bài</button>
-      <button id="endBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 hidden">Kết thúc</button>
-      <button id="reuseBtn" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 hidden">Dùng lại đề cho lớp mới</button>
-      <div id="results-table" class="mt-6 hidden">
-        <h2 class="text-xl font-bold mb-4">Kết quả</h2>
-        <table class="w-full border-collapse">
-          <thead>
-            <tr class="bg-gray-200">
-              <th class="border p-2">Tên</th>
-              <th class="border p-2">Điểm</th>
-              <th class="border p-2">Thời gian nộp</th>
-            </tr>
-          </thead>
-          <tbody id="results-body"></tbody>
-        </table>
       </div>
       <button onclick="logout()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Đăng xuất</button>
+    </div>
+
+    <!-- Upload Quizzes -->
+    <div id="upload-quizzes" class="mb-6 hidden">
+      <h3 class="text-lg font-semibold mb-2">Nhập file quizzes.json</h3>
+      <input type="file" id="quizzes-file" accept=".json" class="mb-4">
+      <button onclick="uploadQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Tải lên</button>
+      <button onclick="backToQuizList()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      <div id="upload-files-section" class="mt-4 hidden">
+        <h4 class="text-lg font-semibold mb-2">Tải lên các file nghe và ảnh</h4>
+        <div id="upload-files-list" class="space-y-2"></div>
+        <button onclick="uploadFiles()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mt-4">Xác nhận</button>
+      </div>
+    </div>
+
+    <!-- Step 1: Quiz Name and Upload Audio -->
+    <div id="admin-step-audio" class="admin-step hidden">
+      <h3 class="text-lg font-semibold mb-2">Bước 1: Đặt tên đề và tải file nghe (Part 1-4)</h3>
+      <label class="block mb-2">Tên đề thi:</label>
+      <input type="text" id="quiz-name" class="w-full p-2 border rounded mb-4" placeholder="Nhập tên đề thi (ví dụ: Đề thi TOEIC tháng 4)" required>
+      <label class="block mb-2">File nghe (Part 1-4):</label>
+      <input type="file" id="audio-file" accept="audio/mpeg" class="mb-4">
+      <button onclick="nextAdminStep(1)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Tiếp theo</button>
+      <button onclick="backToQuizList()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+    </div>
+
+    <!-- Step 2: Part 1 (Images and Answers) -->
+    <div id="admin-step-part1" class="admin-step hidden">
+      <h3 class="text-lg font-semibold mb-2">Bước 2: Part 1 (6 câu)</h3>
+      <label class="block mb-2">Ảnh cho Part 1:</label>
+      <input type="file" id="images-part1" multiple accept="image/*" class="mb-4">
+      <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
+      <textarea id="answer-key-part1" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 6 đáp án, ví dụ: A,D,C,B,A,C"></textarea>
+      <button onclick="prevAdminStep(1)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
+      <button onclick="nextAdminStep(2)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+    </div>
+
+    <!-- Step 3: Part 2 -->
+    <div id="admin-step-part2" class="admin-step hidden">
+      <h3 class="text-lg font-semibold mb-2">Bước 3: Part 2 (25 câu)</h3>
+      <label class="block mb-2">Ảnh cho Part 2:</label>
+      <input type="file" id="images-part2" multiple accept="image/*" class="mb-4">
+      <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
+      <textarea id="answer-key-part2" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 25 đáp án, ví dụ: A,D,C,B,..."></textarea>
+      <button onclick="prevAdminStep(2)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
+      <button onclick="nextAdminStep(3)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+    </div>
+
+    <!-- Step 4: Part 3 -->
+    <div id="admin-step-part3" class="admin-step hidden">
+      <h3 class="text-lg font-semibold mb-2">Bước 4: Part 3 (39 câu)</h3>
+      <label class="block mb-2">Ảnh cho Part 3:</label>
+      <input type="file" id="images-part3" multiple accept="image/*" class="mb-4">
+      <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
+      <textarea id="answer-key-part3" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 39 đáp án, ví dụ: A,D,C,B,..."></textarea>
+      <button onclick="prevAdminStep(3)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
+      <button onclick="nextAdminStep(4)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+    </div>
+
+    <!-- Step 5: Part 4 -->
+    <div id="admin-step-part4" class="admin-step hidden">
+      <h3 class="text-lg font-semibold mb-2">Bước 5: Part 4 (30 câu)</h3>
+      <label class="block mb-2">Ảnh cho Part 4:</label>
+      <input type="file" id="images-part4" multiple accept="image/*" class="mb-4">
+      <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
+      <textarea id="answer-key-part4" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 30 đáp án, ví dụ: A,D,C,B,..."></textarea>
+      <button onclick="prevAdminStep(4)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
+      <button onclick="nextAdminStep(5)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+    </div>
+
+    <!-- Step 6: Part 5 -->
+    <div id="admin-step-part5" class="admin-step hidden">
+      <h3 class="text-lg font-semibold mb-2">Bước 6: Part 5 (30 câu)</h3>
+      <label class="block mb-2">Ảnh cho Part 5:</label>
+      <input type="file" id="images-part5" multiple accept="image/*" class="mb-4">
+      <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
+      <textarea id="answer-key-part5" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 30 đáp án, ví dụ: A,D,C,B,..."></textarea>
+      <button onclick="prevAdminStep(5)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
+      <button onclick="nextAdminStep(6)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+    </div>
+
+    <!-- Step 7: Part 6 -->
+    <div id="admin-step-part6" class="admin-step hidden">
+      <h3 class="text-lg font-semibold mb-2">Bước 7: Part 6 (16 câu)</h3>
+      <label class="block mb-2">Ảnh cho Part 6:</label>
+      <input type="file" id="images-part6" multiple accept="image/*" class="mb-4">
+      <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
+      <textarea id="answer-key-part6" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 16 đáp án, ví dụ: A,D,C,B,..."></textarea>
+      <button onclick="prevAdminStep(6)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
+      <button onclick="nextAdminStep(7)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+    </div>
+
+    <!-- Step 8: Part 7 -->
+    <div id="admin-step-part7" class="admin-step hidden">
+      <h3 class="text-lg font-semibold mb-2">Bước 8: Part 7 (54 câu)</h3>
+      <label class="block mb-2">Ảnh cho Part 7:</label>
+      <input type="file" id="images-part7" multiple accept="image/*" class="mb-4">
+      <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
+      <textarea id="answer-key-part7" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 54 đáp án, ví dụ: A,D,C,B,..."></textarea>
+      <button onclick="prevAdminStep(7)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
+      <button onclick="saveQuiz()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Lưu đề thi</button>
+    </div>
+
+    <!-- Download Files Section -->
+    <div id="download-files-section" class="mt-4 hidden">
+      <h4 class="text-lg font-semibold mb-2">Tải file nghe và ảnh</h4>
+      <div id="download-files-list" class="space-y-2"></div>
+      <button onclick="backToQuizList()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
     </div>
 
     <!-- Quiz Form -->
@@ -272,8 +267,9 @@
       <h2 class="text-xl font-bold mb-4">Kết quả của bạn</h2>
       <p id="result-score" class="text-lg"></p>
       <p id="result-time" class="text-lg"></p>
-      <p id="result-submitted" class="text-lg"></p>
-      <button onclick="backToLogin()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4">Quay lại</button>
+      <p id="result-submitted" class="text-lg hidden"></p>
+      <button onclick="backToQuizList()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4">Quay lại danh sách đề</button>
+      <button onclick="logout()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mt-4">Đăng xuất</button>
     </div>
 
     <div id="notification" class="mt-4 text-lg"></div>
@@ -282,18 +278,28 @@
   <script>
     let user = null;
     let isAdmin = false;
-    let timeLeft = 7200; // 120 minutes in seconds
+    let timeLeft = 7200; // Default 120 minutes in seconds
     let timerInterval = null;
+    let isAdminControlled = false; // Flag to track if Admin is controlling the quiz
     const welcomeScreen = document.getElementById("welcome-screen");
     const adminLogin = document.getElementById("admin-login");
     const studentLogin = document.getElementById("student-login");
     const studentNameForm = document.getElementById("student-name-form");
+    const quizListScreen = document.getElementById("quiz-list-screen");
+    const adminOptions = document.getElementById("admin-options");
     const adminControls = document.getElementById("admin-controls");
+    const uploadQuizzesSection = document.getElementById("upload-quizzes");
+    const quizzesFileInput = document.getElementById("quizzes-file");
+    const uploadFilesSection = document.getElementById("upload-files-section");
+    const uploadFilesList = document.getElementById("upload-files-list");
+    const quizList = document.getElementById("quiz-list");
+    const downloadFilesSection = document.getElementById("download-files-section");
+    const downloadFilesList = document.getElementById("download-files-list");
     const quizContainer = document.getElementById("quiz-container");
     const notification = document.getElementById("notification");
+    const quizStatus = document.getElementById("quiz-status");
     const participantCount = document.getElementById("participant-count");
     const submittedCount = document.getElementById("submitted-count");
-    const quizStatus = document.getElementById("quiz-status");
     const startBtn = document.getElementById("startBtn");
     const endBtn = document.getElementById("endBtn");
     const reuseBtn = document.getElementById("reuseBtn");
@@ -308,15 +314,6 @@
     const resultScore = document.getElementById("result-score");
     const resultTime = document.getElementById("result-time");
     const resultSubmitted = document.getElementById("result-submitted");
-    const adminOptions = document.getElementById("admin-options");
-    const uploadQuizzesSection = document.getElementById("upload-quizzes");
-    const quizzesFileInput = document.getElementById("quizzes-file");
-    const uploadFilesSection = document.getElementById("upload-files-section");
-    const uploadFilesList = document.getElementById("upload-files-list");
-    const quizSelection = document.getElementById("quiz-selection");
-    const quizList = document.getElementById("quiz-list");
-    const downloadFilesSection = document.getElementById("download-files-section");
-    const downloadFilesList = document.getElementById("download-files-list");
 
     const wsProtocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
     let socket;
@@ -344,9 +341,12 @@
       welcomeScreen.classList.remove("hidden");
       adminLogin.classList.add("hidden");
       studentLogin.classList.add("hidden");
-      adminControls.classList.add("hidden");
+      quizListScreen.classList.add("hidden");
       quizContainer.classList.add("hidden");
       resultScreen.classList.add("hidden");
+      document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
+      uploadQuizzesSection.classList.add("hidden");
+      downloadFilesSection.classList.add("hidden");
       user = null;
       isAdmin = false;
       if (socket) socket.close();
@@ -358,10 +358,12 @@
       user = { name: profile.name, email: profile.email };
       isAdmin = true;
       adminLogin.classList.add("hidden");
-      adminControls.classList.remove("hidden");
+      quizListScreen.classList.remove("hidden");
       adminOptions.classList.remove("hidden");
+      adminControls.classList.remove("hidden");
       socket = new WebSocket(wsProtocol + location.host);
       socket.onmessage = handleWebSocketMessage;
+      loadQuizzes();
     };
 
     // Student Name Form Submission
@@ -375,32 +377,38 @@
       user = { name };
       isAdmin = false;
       studentLogin.classList.add("hidden");
+      quizListScreen.classList.remove("hidden");
+      adminOptions.classList.add("hidden");
+      adminControls.classList.add("hidden");
       socket = new WebSocket(wsProtocol + location.host);
       socket.onmessage = handleWebSocketMessage;
+      loadQuizzes();
     };
 
-    // Back to Options
-    function backToOptions() {
-      adminOptions.classList.remove("hidden");
+    // Back to Quiz List
+    function backToQuizList() {
+      quizListScreen.classList.remove("hidden");
       uploadQuizzesSection.classList.add("hidden");
-      quizSelection.classList.add("hidden");
       document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
+      quizContainer.classList.add("hidden");
+      resultScreen.classList.add("hidden");
+      downloadFilesSection.classList.add("hidden");
       notification.innerText = "";
       uploadedQuizzes = null;
       uploadFilesSection.classList.add("hidden");
-      downloadFilesSection.classList.add("hidden");
       document.getElementById("quiz-name").value = ""; // Reset quiz name input
+      loadQuizzes();
     }
 
     // Create New Quiz
     function createNewQuiz() {
-      adminOptions.classList.add("hidden");
+      quizListScreen.classList.add("hidden");
       document.getElementById("admin-step-audio").classList.remove("hidden");
     }
 
     // Show Upload Quizzes
     function showUploadQuizzes() {
-      adminOptions.classList.add("hidden");
+      quizListScreen.classList.add("hidden");
       uploadQuizzesSection.classList.remove("hidden");
     }
 
@@ -504,13 +512,14 @@
 
       notification.innerText = "Files uploaded successfully!";
       uploadFilesSection.classList.add("hidden");
-      loadQuizzes();
+      backToQuizList();
     }
 
     // Load Quizzes
     async function loadQuizzes() {
-      const res = await fetch("/quizzes");
-      const quizzes = await res.json();
+      const url = isAdmin ? `/quizzes?email=${encodeURIComponent(user.email)}` : '/quizzes';
+      const res = await fetch(url);
+      const<% quizzes = await res.json();
       quizList.innerHTML = "";
       if (quizzes.length === 0) {
         quizList.innerHTML = "<p>Chưa có đề thi nào.</p>";
@@ -518,15 +527,21 @@
         quizzes.forEach(quiz => {
           const div = document.createElement("div");
           div.className = "flex items-center space-x-2";
-          div.innerHTML = `
-            <span>${quiz.quizName}</span>
-            <button onclick="selectQuiz('${quiz.quizId}')" class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">Chọn</button>
-          `;
+          if (isAdmin) {
+            div.innerHTML = `
+              <span>${quiz.quizName}</span>
+              <button onclick="selectQuiz('${quiz.quizId}')" class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">Chọn để kiểm soát</button>
+              <button onclick="startQuiz('${quiz.quizId}')" class="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">Bắt đầu làm bài</button>
+            `;
+          } else {
+            div.innerHTML = `
+              <span>${quiz.quizName}</span>
+              <button onclick="startQuiz('${quiz.quizId}')" class="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">Bắt đầu làm bài</button>
+            `;
+          }
           quizList.appendChild(div);
         });
       }
-      adminOptions.classList.add("hidden");
-      quizSelection.classList.remove("hidden");
     }
 
     // Download Quizzes
@@ -540,7 +555,7 @@
       document.body.removeChild(link);
 
       // Fetch quizzes to display file download links
-      const res = await fetch("/quizzes");
+      const res = await fetch(`/quizzes?email=${encodeURIComponent(user.email)}`);
       const quizzes = await res.json();
       const allFiles = new Set();
       quizzes.forEach(quiz => {
@@ -551,6 +566,7 @@
       });
 
       downloadFilesSection.classList.remove("hidden");
+      quizListScreen.classList.add("hidden");
       downloadFilesList.innerHTML = "";
       allFiles.forEach(filePath => {
         const div = document.createElement("div");
@@ -559,7 +575,7 @@
       });
     }
 
-    // Select Quiz
+    // Select Quiz (Admin-controlled mode)
     async function selectQuiz(quizId) {
       const res = await fetch("/select-quiz", {
         method: "POST",
@@ -567,9 +583,58 @@
         body: JSON.stringify({ quizId }),
       });
       const result = await res.json();
-      notification.innerText = result.message;
-      quizSelection.classList.add("hidden");
-      startBtn.classList.remove("hidden");
+      if (res.ok) {
+        // Show time limit input
+        const timeLimit = prompt("Nhập thời gian làm bài (phút, tối đa 120):", "120");
+        if (timeLimit === null) return; // User cancelled
+        let timeLimitSeconds = parseInt(timeLimit) * 60;
+        if (isNaN(timeLimitSeconds) || timeLimitSeconds <= 0 || timeLimitSeconds > 7200) {
+          notification.innerText = "Thời gian không hợp lệ! Sử dụng mặc định 120 phút.";
+          timeLimitSeconds = 7200;
+        }
+        startBtn.classList.remove("hidden");
+        startBtn.onclick = () => {
+          socket.send(JSON.stringify({ type: "start", timeLimit: timeLimitSeconds }));
+        };
+      } else {
+        notification.innerText = result.message;
+      }
+    }
+
+    // Start Quiz (Self-paced mode)
+    async function startQuiz(quizId) {
+      const res = await fetch("/select-quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quizId }),
+      });
+      const result = await res.json();
+      if (res.ok) {
+        isAdminControlled = false;
+        timeLeft = 7200; // Default 120 minutes for self-paced
+        quizListScreen.classList.add("hidden");
+        quizContainer.classList.remove("hidden");
+        timerDisplay.classList.remove("hidden");
+        audio.classList.remove("hidden");
+        // Load audio dynamically
+        fetch("/quiz-audio")
+          .then(res => res.json())
+          .then(data => {
+            if (data.audio) {
+              audioSource.src = data.audio;
+              audio.load();
+            } else {
+              notification.innerText = "Không tìm thấy file nghe!";
+            }
+          })
+          .catch(err => {
+            notification.innerText = "Lỗi khi tải file nghe!";
+          });
+        loadImages(1);
+        startTimer();
+      } else {
+        notification.innerText = result.message;
+      }
     }
 
     // Create Question (for quiz)
@@ -609,11 +674,10 @@
 
     // Timer
     function startTimer() {
-      timeLeft = 7200;
       timerInterval = setInterval(() => {
         if (timeLeft <= 0) {
           clearInterval(timerInterval);
-          quizForm.dispatchEvent(new Event("submit"));
+          submitQuiz();
           return;
         }
         const minutes = Math.floor(timeLeft / 60);
@@ -649,7 +713,6 @@
           notification.innerText = "Vui lòng tải file nghe!";
           return;
         }
-        // If quiz name and audio file are provided, proceed to Step 2 (Part 1)
         document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
         document.getElementById("admin-step-part1").classList.remove("hidden");
         notification.innerText = "";
@@ -677,13 +740,8 @@
         }
       }
 
-      // Proceed to the next step
       document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
-      if (step <= 7) {
-        document.getElementById(`admin-step-part${step}`).classList.remove("hidden");
-      } else {
-        startBtn.classList.remove("hidden");
-      }
+      document.getElementById(`admin-step-part${step}`).classList.remove("hidden");
       notification.innerText = "";
       currentAdminStep = step;
     }
@@ -737,6 +795,7 @@
       }
       formData.append("answerKey", JSON.stringify(answerKey));
       formData.append("quizName", quizName);
+      formData.append("createdBy", user.email); // Add createdBy field
 
       const res = await fetch("/save-quiz", {
         method: "POST",
@@ -745,7 +804,7 @@
       const result = await res.json();
       notification.innerText = result.message;
       document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
-      await loadQuizzes();
+      backToQuizList();
     }
 
     // Quiz Part Navigation
@@ -783,10 +842,12 @@
       const msg = JSON.parse(event.data);
       if (msg.type === "start") {
         if (!isAdmin) {
+          isAdminControlled = true;
+          timeLeft = msg.timeLimit || 7200; // Use Admin's time limit
+          quizListScreen.classList.add("hidden");
           quizContainer.classList.remove("hidden");
           timerDisplay.classList.remove("hidden");
           audio.classList.remove("hidden");
-          // Load audio dynamically
           fetch("/quiz-audio")
             .then(res => res.json())
             .then(data => {
@@ -811,9 +872,7 @@
       }
       if (msg.type === "end") {
         if (!isAdmin) {
-          quizForm.querySelectorAll("input").forEach(input => input.disabled = true);
-          notification.innerText = "Quiz đã kết thúc.";
-          clearInterval(timerInterval);
+          submitQuiz();
         } else {
           endBtn.classList.add("hidden");
           reuseBtn.classList.remove("hidden");
@@ -831,15 +890,17 @@
       if (msg.type === "submittedCount") {
         if (isAdmin) submittedCount.innerText = `Số người đã nộp: ${msg.count}`;
         resultSubmitted.innerText = `Số người đã nộp: ${msg.count}`;
+        resultSubmitted.classList.remove("hidden");
+      }
+      if (msg.type === "quizStatus") {
+        quizStatus.innerText = msg.quizExists ? "Đang có bài thi được chọn." : "";
+        if (isAdmin) {
+          startBtn.classList.toggle("hidden", !msg.quizExists);
+        }
       }
     }
 
     // Admin Controls
-    if (startBtn) {
-      startBtn.onclick = () => {
-        socket.send(JSON.stringify({ type: "start" }));
-      };
-    }
     if (endBtn) {
       endBtn.onclick = () => {
         socket.send(JSON.stringify({ type: "end" }));
@@ -872,9 +933,8 @@
       });
     }
 
-    // Quiz Form Submission
-    quizForm.onsubmit = async (e) => {
-      e.preventDefault();
+    // Submit Quiz
+    async function submitQuiz() {
       const formData = new FormData(quizForm);
       const answers = {};
       formData.forEach((val, key) => answers[key] = val);
@@ -906,23 +966,25 @@
       if (res.ok) {
         quizContainer.classList.add("hidden");
         resultScreen.classList.remove("hidden");
+        timerDisplay.classList.add("hidden");
+        audio.classList.add("hidden");
         resultScore.innerText = `Điểm: ${result.score}/200`;
         resultTime.innerText = `Thời gian nộp: ${new Date().toLocaleString()}`;
-        socket.send(JSON.stringify({ type: "submitted", username: user.name }));
         quizForm.querySelector("button[type=submit]").disabled = true;
         clearInterval(timerInterval);
+        if (isAdminControlled) {
+          socket.send(JSON.stringify({ type: "submitted", username: user.name }));
+        }
       } else {
         notification.innerText = result.message || "Lỗi khi nộp bài!";
       }
-    };
-
-    // Back to Login
-    function backToLogin() {
-      resultScreen.classList.add("hidden");
-      studentLogin.classList.remove("hidden");
-      user = null;
-      socket.close();
     }
+
+    // Quiz Form Submission
+    quizForm.onsubmit = async (e) => {
+      e.preventDefault();
+      await submitQuiz();
+    };
 
     // Logout
     function logout() {
