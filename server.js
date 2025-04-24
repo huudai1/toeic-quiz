@@ -12,8 +12,10 @@ app.use(express.json());
 // Multer configuration for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    if (file.fieldname === 'audio') {
+    if (file.fieldname === 'audio' || file.fieldname.startsWith('audio-')) {
       cb(null, 'uploads/audio/');
+    } else if (file.fieldname === 'quizzes') {
+      cb(null, './');
     } else {
       cb(null, 'uploads/images/');
     }
@@ -107,6 +109,44 @@ app.get('/quiz-status', (req, res) => {
 app.get('/quizzes', async (req, res) => {
   await loadQuizzes();
   res.json(quizzes.map(quiz => ({ quizId: quiz.quizId })));
+});
+
+app.get('/download-quizzes', (req, res) => {
+  res.download(QUIZZES_FILE, 'quizzes.json', (err) => {
+    if (err) {
+      console.error('Error downloading quizzes.json:', err);
+      res.status(500).json({ message: 'Error downloading quizzes.json' });
+    }
+  });
+});
+
+app.post('/upload-quizzes', upload.single('quizzes'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'No file uploaded' });
+  }
+  try {
+    const uploadedPath = req.file.path;
+    await fs.rename(uploadedPath, QUIZZES_FILE);
+    await loadQuizzes();
+    res.json({ message: 'Quizzes uploaded successfully' });
+  } catch (err) {
+    console.error('Error uploading quizzes:', err);
+    res.status(500).json({ message: 'Error uploading quizzes' });
+  }
+});
+
+app.post('/upload-files', upload.fields([
+  { name: 'audio', maxCount: 1 },
+  { name: 'images', maxCount: 100 },
+]), async (req, res) => {
+  const uploadedFiles = {};
+  if (req.files['audio']) {
+    uploadedFiles.audio = req.files['audio'].map(file => `/uploads/audio/${file.filename}`);
+  }
+  if (req.files['images']) {
+    uploadedFiles.images = req.files['images'].map(file => `/uploads/images/${file.filename}`);
+  }
+  res.json(uploadedFiles);
 });
 
 app.post('/select-quiz', (req, res) => {

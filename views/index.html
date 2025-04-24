@@ -67,18 +67,44 @@
       <div id="submitted-count" class="text-lg font-semibold mb-4"></div>
       <p id="quiz-status" class="text-lg font-semibold mb-4"></p>
 
+      <!-- Admin Options After Login -->
+      <div id="admin-options" class="mb-6 hidden">
+        <h3 class="text-lg font-semibold mb-2">Chọn hành động:</h3>
+        <button onclick="createNewQuiz()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mr-2">Tạo đề mới</button>
+        <button onclick="showUploadQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Nhập file quizzes.json</button>
+      </div>
+
+      <!-- Upload Quizzes -->
+      <div id="upload-quizzes" class="mb-6 hidden">
+        <h3 class="text-lg font-semibold mb-2">Nhập file quizzes.json</h3>
+        <input type="file" id="quizzes-file" accept=".json" class="mb-4">
+        <button onclick="uploadQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Tải lên</button>
+        <button onclick="backToOptions()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+        <div id="upload-files-section" class="mt-4 hidden">
+          <h4 class="text-lg font-semibold mb-2">Tải lên các file nghe và ảnh</h4>
+          <div id="upload-files-list" class="space-y-2"></div>
+          <button onclick="uploadFiles()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mt-4">Xác nhận</button>
+        </div>
+      </div>
+
       <!-- Quiz Selection -->
-      <div id="quiz-selection" class="mb-6">
+      <div id="quiz-selection" class="mb-6 hidden">
         <h3 class="text-lg font-semibold mb-2">Danh sách đề thi</h3>
         <div id="quiz-list" class="space-y-2"></div>
-        <button onclick="createNewQuiz()" class="mt-4 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Tạo đề mới</button>
+        <button onclick="downloadQuizzes()" class="mt-4 bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 mr-2">Tải đề xuống</button>
+        <button onclick="backToOptions()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+        <div id="download-files-section" class="mt-4 hidden">
+          <h4 class="text-lg font-semibold mb-2">Tải file nghe và ảnh</h4>
+          <div id="download-files-list" class="space-y-2"></div>
+        </div>
       </div>
 
       <!-- Step 1: Upload Audio Only -->
       <div id="admin-step-audio" class="admin-step hidden">
         <h3 class="text-lg font-semibold mb-2">Bước 1: Tải file nghe (Part 1-4)</h3>
         <input type="file" id="audio-file" accept="audio/mpeg" class="mb-4">
-        <button onclick="nextAdminStep(1)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+        <button onclick="nextAdminStep(1)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Tiếp theo</button>
+        <button onclick="backToOptions()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
       </div>
 
       <!-- Step 2: Part 1 (Images and Answers) -->
@@ -88,7 +114,7 @@
         <input type="file" id="images-part1" multiple accept="image/*" class="mb-4">
         <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
         <textarea id="answer-key-part1" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 6 đáp án, ví dụ: A,D,C,B,A,C"></textarea>
-        <button onclick="prevAdminStep(1)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+        <button onclick="prevAdminStep(1)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
         <button onclick="nextAdminStep(2)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
       </div>
 
@@ -99,7 +125,7 @@
         <input type="file" id="images-part2" multiple accept="image/*" class="mb-4">
         <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
         <textarea id="answer-key-part2" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 25 đáp án, ví dụ: A,D,C,B,..."></textarea>
-        <button onclick="prevAdminStep(2)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+        <button onclick="prevAdminStep(2)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
         <button onclick="nextAdminStep(3)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
       </div>
 
@@ -110,7 +136,7 @@
         <input type="file" id="images-part3" multiple accept="image/*" class="mb-4">
         <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
         <textarea id="answer-key-part3" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 39 đáp án, ví dụ: A,D,C,B,..."></textarea>
-        <button onclick="prevAdminStep(3)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+        <button onclick="prevAdminStep(3)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
         <button onclick="nextAdminStep(4)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
       </div>
 
@@ -121,7 +147,7 @@
         <input type="file" id="images-part4" multiple accept="image/*" class="mb-4">
         <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
         <textarea id="answer-key-part4" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 30 đáp án, ví dụ: A,D,C,B,..."></textarea>
-        <button onclick="prevAdminStep(4)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+        <button onclick="prevAdminStep(4)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
         <button onclick="nextAdminStep(5)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
       </div>
 
@@ -132,7 +158,7 @@
         <input type="file" id="images-part5" multiple accept="image/*" class="mb-4">
         <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
         <textarea id="answer-key-part5" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 30 đáp án, ví dụ: A,D,C,B,..."></textarea>
-        <button onclick="prevAdminStep(5)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+        <button onclick="prevAdminStep(5)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
         <button onclick="nextAdminStep(6)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
       </div>
 
@@ -143,7 +169,7 @@
         <input type="file" id="images-part6" multiple accept="image/*" class="mb-4">
         <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
         <textarea id="answer-key-part6" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 16 đáp án, ví dụ: A,D,C,B,..."></textarea>
-        <button onclick="prevAdminStep(6)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+        <button onclick="prevAdminStep(6)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
         <button onclick="nextAdminStep(7)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
       </div>
 
@@ -154,7 +180,7 @@
         <input type="file" id="images-part7" multiple accept="image/*" class="mb-4">
         <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
         <textarea id="answer-key-part7" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 54 đáp án, ví dụ: A,D,C,B,..."></textarea>
-        <button onclick="prevAdminStep(7)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+        <button onclick="prevAdminStep(7)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
         <button onclick="saveQuiz()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Lưu đề thi</button>
       </div>
 
@@ -279,14 +305,22 @@
     const resultScore = document.getElementById("result-score");
     const resultTime = document.getElementById("result-time");
     const resultSubmitted = document.getElementById("result-submitted");
+    const adminOptions = document.getElementById("admin-options");
+    const uploadQuizzesSection = document.getElementById("upload-quizzes");
+    const quizzesFileInput = document.getElementById("quizzes-file");
+    const uploadFilesSection = document.getElementById("upload-files-section");
+    const uploadFilesList = document.getElementById("upload-files-list");
     const quizSelection = document.getElementById("quiz-selection");
     const quizList = document.getElementById("quiz-list");
+    const downloadFilesSection = document.getElementById("download-files-section");
+    const downloadFilesList = document.getElementById("download-files-list");
 
     const wsProtocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
     let socket;
     let currentAdminStep = 0;
     let currentQuizPart = 0;
     const partAnswerCounts = [6, 25, 39, 30, 30, 16, 54]; // Số câu mỗi Part
+    let uploadedQuizzes = null;
 
     // Show Admin Login
     function showAdminLogin() {
@@ -322,9 +356,9 @@
       isAdmin = true;
       adminLogin.classList.add("hidden");
       adminControls.classList.remove("hidden");
+      adminOptions.classList.remove("hidden");
       socket = new WebSocket(wsProtocol + location.host);
       socket.onmessage = handleWebSocketMessage;
-      loadQuizzes();
     };
 
     // Student Name Form Submission
@@ -341,6 +375,135 @@
       socket = new WebSocket(wsProtocol + location.host);
       socket.onmessage = handleWebSocketMessage;
     };
+
+    // Back to Options
+    function backToOptions() {
+      adminOptions.classList.remove("hidden");
+      uploadQuizzesSection.classList.add("hidden");
+      quizSelection.classList.add("hidden");
+      document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
+      notification.innerText = "";
+      uploadedQuizzes = null;
+      uploadFilesSection.classList.add("hidden");
+      downloadFilesSection.classList.add("hidden");
+    }
+
+    // Create New Quiz
+    function createNewQuiz() {
+      adminOptions.classList.add("hidden");
+      document.getElementById("admin-step-audio").classList.remove("hidden");
+    }
+
+    // Show Upload Quizzes
+    function showUploadQuizzes() {
+      adminOptions.classList.add("hidden");
+      uploadQuizzesSection.classList.remove("hidden");
+    }
+
+    // Upload Quizzes
+    async function uploadQuizzes() {
+      const file = quizzesFileInput.files[0];
+      if (!file) {
+        notification.innerText = "Vui lòng chọn file quizzes.json!";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("quizzes", file);
+      const res = await fetch("/upload-quizzes", {
+        method: "POST",
+        body: formData,
+      });
+      const result = await res.json();
+      notification.innerText = result.message;
+
+      if (res.ok) {
+        // Read the uploaded file content to extract file paths
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          uploadedQuizzes = JSON.parse(e.target.result);
+          displayUploadFiles();
+        };
+        reader.readAsText(file);
+      }
+    }
+
+    // Display Upload Files Section
+    function displayUploadFiles() {
+      uploadFilesSection.classList.remove("hidden");
+      uploadFilesList.innerHTML = "";
+
+      const allFiles = new Set();
+      uploadedQuizzes.forEach(quiz => {
+        if (quiz.audio) allFiles.add(quiz.audio);
+        Object.values(quiz.images).forEach(images => {
+          images.forEach(image => allFiles.add(image));
+        });
+      });
+
+      allFiles.forEach(filePath => {
+        const div = document.createElement("div");
+        div.className = "flex items-center space-x-2";
+        const type = filePath.includes('/audio/') ? 'audio' : 'image';
+        div.innerHTML = `
+          <label>${filePath} (${type}):</label>
+          <input type="file" id="file-${filePath}" accept="${type === 'audio' ? 'audio/mpeg' : 'image/*'}" class="flex-1">
+        `;
+        uploadFilesList.appendChild(div);
+      });
+    }
+
+    // Upload Files
+    async function uploadFiles() {
+      const formData = new FormData();
+      const pathMapping = {};
+
+      const allFiles = new Set();
+      uploadedQuizzes.forEach(quiz => {
+        if (quiz.audio) allFiles.add(quiz.audio);
+        Object.values(quiz.images).forEach(images => {
+          images.forEach(image => allFiles.add(image));
+        });
+      });
+
+      for (const filePath of allFiles) {
+        const input = document.getElementById(`file-${filePath}`);
+        if (!input.files[0]) {
+          notification.innerText = `Vui lòng tải file cho ${filePath}!`;
+          return;
+        }
+        const type = filePath.includes('/audio/') ? 'audio' : 'images';
+        formData.append(type, input.files[0]);
+      }
+
+      const res = await fetch("/upload-files", {
+        method: "POST",
+        body: formData,
+      });
+      const uploadedFiles = await res.json();
+
+      // Update quizzes.json with new file paths
+      let audioIndex = 0;
+      let imageIndex = 0;
+      uploadedQuizzes.forEach(quiz => {
+        if (quiz.audio) {
+          quiz.audio = uploadedFiles.audio[audioIndex++];
+        }
+        Object.keys(quiz.images).forEach(part => {
+          quiz.images[part] = quiz.images[part].map(() => uploadedFiles.images[imageIndex++]);
+        });
+      });
+
+      // Save updated quizzes.json
+      await fetch("/upload-quizzes", {
+        method: "POST",
+        body: new FormData().append("quizzes", new Blob([JSON.stringify(uploadedQuizzes)], { type: 'application/json' })),
+      });
+
+      notification.innerText = "Files uploaded successfully!";
+      uploadFilesSection.classList.add("hidden");
+      loadQuizzes();
+    }
 
     // Load Quizzes
     async function loadQuizzes() {
@@ -360,13 +523,38 @@
           quizList.appendChild(div);
         });
       }
+      adminOptions.classList.add("hidden");
       quizSelection.classList.remove("hidden");
     }
 
-    // Create New Quiz
-    function createNewQuiz() {
-      quizSelection.classList.add("hidden");
-      document.getElementById("admin-step-audio").classList.remove("hidden");
+    // Download Quizzes
+    async function downloadQuizzes() {
+      // Download quizzes.json
+      const link = document.createElement("a");
+      link.href = "/download-quizzes";
+      link.download = "quizzes.json";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Fetch quizzes to display file download links
+      const res = await fetch("/quizzes");
+      const quizzes = await res.json();
+      const allFiles = new Set();
+      quizzes.forEach(quiz => {
+        if (quiz.audio) allFiles.add(quiz.audio);
+        Object.values(quiz.images).forEach(images => {
+          images.forEach(image => allFiles.add(image));
+        });
+      });
+
+      downloadFilesSection.classList.remove("hidden");
+      downloadFilesList.innerHTML = "";
+      allFiles.forEach(filePath => {
+        const div = document.createElement("div");
+        div.innerHTML = `<a href="${filePath}" download class="text-blue-500 underline">${filePath}</a>`;
+        downloadFilesList.appendChild(div);
+      });
     }
 
     // Select Quiz
