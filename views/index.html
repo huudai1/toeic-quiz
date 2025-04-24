@@ -456,8 +456,6 @@
     // Upload Files
     async function uploadFiles() {
       const formData = new FormData();
-      const pathMapping = {};
-
       const allFiles = new Set();
       uploadedQuizzes.forEach(quiz => {
         if (quiz.audio) allFiles.add(quiz.audio);
@@ -659,6 +657,10 @@
           return;
         }
         const answerKeyInput = document.getElementById(`answer-key-part${part}`).value.trim();
+        if (!answerKeyInput) {
+          notification.innerText = `Vui lòng nhập đáp án cho Part ${part}!`;
+          return;
+        }
         const answers = answerKeyInput.split(",").map(a => a.trim().toUpperCase());
         if (answers.length !== partAnswerCounts[part - 1] || !answers.every(a => ["A", "B", "C", "D"].includes(a))) {
           notification.innerText = `Đáp án Part ${part} phải có đúng ${partAnswerCounts[part - 1]} câu, chỉ chứa A, B, C, D!`;
@@ -704,7 +706,15 @@
       let questionIndex = 1;
       for (let part = 1; part <= 7; part++) {
         const answerKeyInput = document.getElementById(`answer-key-part${part}`).value.trim();
+        if (!answerKeyInput) {
+          notification.innerText = `Vui lòng nhập đáp án cho Part ${part}!`;
+          return;
+        }
         const answers = answerKeyInput.split(",").map(a => a.trim().toUpperCase());
+        if (answers.length !== partAnswerCounts[part - 1]) {
+          notification.innerText = `Part ${part} phải có đúng ${partAnswerCounts[part - 1]} đáp án!`;
+          return;
+        }
         for (let i = 0; i < partAnswerCounts[part - 1]; i++) {
           answerKey[`q${questionIndex}`] = answers[i];
           questionIndex++;
@@ -760,8 +770,20 @@
           quizContainer.classList.remove("hidden");
           timerDisplay.classList.remove("hidden");
           audio.classList.remove("hidden");
-          audioSource.src = "/uploads/audio/audio.mp3";
-          audio.load();
+          // Load audio dynamically
+          fetch("/quiz-audio")
+            .then(res => res.json())
+            .then(data => {
+              if (data.audio) {
+                audioSource.src = data.audio;
+                audio.load();
+              } else {
+                notification.innerText = "Không tìm thấy file nghe!";
+              }
+            })
+            .catch(err => {
+              notification.innerText = "Lỗi khi tải file nghe!";
+            });
           loadImages(1);
           startTimer();
         } else {
@@ -865,13 +887,17 @@
         body: JSON.stringify({ username: user.name, answers }),
       });
       const result = await res.json();
-      quizContainer.classList.add("hidden");
-      resultScreen.classList.remove("hidden");
-      resultScore.innerText = `Điểm: ${result.score}/200`;
-      resultTime.innerText = `Thời gian nộp: ${new Date().toLocaleString()}`;
-      socket.send(JSON.stringify({ type: "submitted", username: user.name }));
-      quizForm.querySelector("button[type=submit]").disabled = true;
-      clearInterval(timerInterval);
+      if (res.ok) {
+        quizContainer.classList.add("hidden");
+        resultScreen.classList.remove("hidden");
+        resultScore.innerText = `Điểm: ${result.score}/200`;
+        resultTime.innerText = `Thời gian nộp: ${new Date().toLocaleString()}`;
+        socket.send(JSON.stringify({ type: "submitted", username: user.name }));
+        quizForm.querySelector("button[type=submit]").disabled = true;
+        clearInterval(timerInterval);
+      } else {
+        notification.innerText = result.message || "Lỗi khi nộp bài!";
+      }
     };
 
     // Back to Login

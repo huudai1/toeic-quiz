@@ -111,6 +111,14 @@ app.get('/quizzes', async (req, res) => {
   res.json(quizzes.map(quiz => ({ quizId: quiz.quizId })));
 });
 
+app.get('/quiz-audio', (req, res) => {
+  const quiz = quizzes.find(q => q.quizId === currentQuizId);
+  if (!quiz || !quiz.audio) {
+    return res.status(404).json({ message: 'Audio not found' });
+  }
+  res.json({ audio: quiz.audio });
+});
+
 app.get('/download-quizzes', (req, res) => {
   res.download(QUIZZES_FILE, 'quizzes.json', (err) => {
     if (err) {
@@ -136,7 +144,7 @@ app.post('/upload-quizzes', upload.single('quizzes'), async (req, res) => {
 });
 
 app.post('/upload-files', upload.fields([
-  { name: 'audio', maxCount: 1 },
+  { name: 'audio', maxCount: 100 },
   { name: 'images', maxCount: 100 },
 ]), async (req, res) => {
   const uploadedFiles = {};
@@ -184,7 +192,13 @@ app.post('/save-quiz', upload.fields([
   }
 
   if (req.body.answerKey) {
-    quiz.answerKey = JSON.parse(req.body.answerKey);
+    try {
+      quiz.answerKey = JSON.parse(req.body.answerKey);
+    } catch (err) {
+      return res.status(400).json({ message: 'Invalid answerKey format' });
+    }
+  } else {
+    return res.status(400).json({ message: 'answerKey is required' });
   }
 
   quizzes.push(quiz);
@@ -207,6 +221,9 @@ app.post('/submit', (req, res) => {
   const quiz = quizzes.find(q => q.quizId === currentQuizId);
   if (!quiz) {
     return res.status(404).json({ message: 'Quiz not found' });
+  }
+  if (!quiz.answerKey || Object.keys(quiz.answerKey).length === 0) {
+    return res.status(400).json({ message: 'Answer key not found or empty' });
   }
 
   let score = 0;
