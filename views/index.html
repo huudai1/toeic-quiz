@@ -62,21 +62,21 @@
 
     <!-- Admin Controls -->
     <div id="admin-controls" class="mb-6 hidden">
-      <h2 class=" Ниtext-xl font-bold mb-4">Quản lý đề thi</h2>
+      <h2 class="text-xl font-bold mb-4">Quản lý đề thi</h2>
       <div id="participant-count" class="text-lg font-semibold mb-4"></div>
       <div id="submitted-count" class="text-lg font-semibold mb-4"></div>
       <p id="quiz-status" class="text-lg font-semibold mb-4"></p>
 
-      <!-- Step 1: Upload Audio -->
+      <!-- Step 1: Upload Audio Only -->
       <div id="admin-step-audio" class="admin-step">
         <h3 class="text-lg font-semibold mb-2">Bước 1: Tải file nghe (Part 1-4)</h3>
         <input type="file" id="audio-file" accept="audio/mpeg" class="mb-4">
         <button onclick="nextAdminStep(1)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
       </div>
 
-      <!-- Step 2-8: Upload Images and Enter Answers for Each Part -->
+      <!-- Step 2: Part 1 (Images and Answers) -->
       <div id="admin-step-part1" class="admin-step hidden">
-        <h3 class="text-lg font-semibold mb-2">Part 1 (6 câu)</h3>
+        <h3 class="text-lg font-semibold mb-2">Bước 2: Part 1 (6 câu)</h3>
         <label class="block mb-2">Ảnh cho Part 1:</label>
         <input type="file" id="images-part1" multiple accept="image/*" class="mb-4">
         <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
@@ -85,8 +85,9 @@
         <button onclick="nextAdminStep(2)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
       </div>
 
+      <!-- Step 3: Part 2 -->
       <div id="admin-step-part2" class="admin-step hidden">
-        <h3 class="text-lg font-semibold mb-2">Part 2 (25 câu)</h3>
+        <h3 class="text-lg font-semibold mb-2">Bước 3: Part 2 (25 câu)</h3>
         <label class="block mb-2">Ảnh cho Part 2:</label>
         <input type="file" id="images-part2" multiple accept="image/*" class="mb-4">
         <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
@@ -95,8 +96,9 @@
         <button onclick="nextAdminStep(3)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
       </div>
 
+      <!-- Step 4: Part 3 -->
       <div id="admin-step-part3" class="admin-step hidden">
-        <h3 class="text-lg font-semibold mb-2">Part 3 (39 câu)</h3>
+        <h3 class="text-lg font-semibold mb-2">Bước 4: Part 3 (39 câu)</h3>
         <label class="block mb-2">Ảnh cho Part 3:</label>
         <input type="file" id="images-part3" multiple accept="image/*" class="mb-4">
         <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
@@ -105,8 +107,9 @@
         <button onclick="nextAdminStep(4)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
       </div>
 
+      <!-- Step 5: Part 4 -->
       <div id="admin-step-part4" class="admin-step hidden">
-        <h3 class="text-lg font-semibold mb-2">Part 4 (30 câu)</h3>
+        <h3 class="text-lg font-semibold mb-2">Bước 5: Part 4 (30 câu)</h3>
         <label class="block mb-2">Ảnh cho Part 4:</label>
         <input type="file" id="images-part4" multiple accept="image/*" class="mb-4">
         <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
@@ -115,8 +118,9 @@
         <button onclick="nextAdminStep(5)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
       </div>
 
+      <!-- Step 6: Part 5 -->
       <div id="admin-step-part5" class="admin-step hidden">
-        <h3 class="text-lg font-semibold mb-2">Part 5 (30 câu)</h3>
+        <h3 class="text-lg font-semibold mb-2">Bước 6: Part 5 (30 câu)</h3>
         <label class="block mb-2">Ảnh cho Part 5:</label>
         <input type="file" id="images-part5" multiple accept="image/*" class="mb-4">
         <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
@@ -125,8 +129,9 @@
         <button onclick="nextAdminStep(6)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
       </div>
 
+      <!-- Step 7: Part 6 -->
       <div id="admin-step-part6" class="admin-step hidden">
-        <h3 class="text-lg font-semibold mb-2">Part 6 (16 câu)</h3>
+        <h3 class="text-lg font-semibold mb-2">Bước 7: Part 6 (16 câu)</h3>
         <label class="block mb-2">Ảnh cho Part 6:</label>
         <input type="file" id="images-part6" multiple accept="image/*" class="mb-4">
         <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
@@ -135,8 +140,9 @@
         <button onclick="nextAdminStep(7)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
       </div>
 
+      <!-- Step 8: Part 7 -->
       <div id="admin-step-part7" class="admin-step hidden">
-        <h3 class="text-lg font-semibold mb-2">Part 7 (54 câu)</h3>
+        <h3 class="text-lg font-semibold mb-2">Bước 8: Part 7 (54 câu)</h3>
         <label class="block mb-2">Ảnh cho Part 7:</label>
         <input type="file" id="images-part7" multiple accept="image/*" class="mb-4">
         <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
