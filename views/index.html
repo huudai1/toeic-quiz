@@ -32,7 +32,7 @@
     <div id="admin-login" class="mb-6 hidden">
       <h2 class="text-xl font-bold mb-4">Admin: Đăng nhập bằng Google</h2>
       <div id="g_id_onload"
-           data-client_id="207656291282-cedkb5qkbeek0s9dbaca2o3ia3svjesv.apps.googleusercontent.com"
+           data-client_id="YOUR_GOOGLE_CLIENT_ID"
            data-callback="handleAdminCredentialResponse">
       </div>
       <div class="g_id_signin" data-type="standard"></div>
@@ -62,19 +62,19 @@
 
     <!-- Admin Controls -->
     <div id="admin-controls" class="mb-6 hidden">
-      <h2 class="text-xl font-bold mb-4">Quản lý đề thi</h2>
+      <h2 class=" Ниtext-xl font-bold mb-4">Quản lý đề thi</h2>
       <div id="participant-count" class="text-lg font-semibold mb-4"></div>
       <div id="submitted-count" class="text-lg font-semibold mb-4"></div>
       <p id="quiz-status" class="text-lg font-semibold mb-4"></p>
 
-      <!-- Upload Audio (Part 1-4) -->
+      <!-- Step 1: Upload Audio -->
       <div id="admin-step-audio" class="admin-step">
         <h3 class="text-lg font-semibold mb-2">Bước 1: Tải file nghe (Part 1-4)</h3>
         <input type="file" id="audio-file" accept="audio/mpeg" class="mb-4">
         <button onclick="nextAdminStep(1)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
       </div>
 
-      <!-- Upload Images and Answers for Each Part -->
+      <!-- Step 2-8: Upload Images and Enter Answers for Each Part -->
       <div id="admin-step-part1" class="admin-step hidden">
         <h3 class="text-lg font-semibold mb-2">Part 1 (6 câu)</h3>
         <label class="block mb-2">Ảnh cho Part 1:</label>
@@ -399,6 +399,11 @@
       }
       if (step >= 1 && step <= 7) {
         const part = step;
+        const imagesInput = document.getElementById(`images-part${part}`);
+        if (!imagesInput.files.length) {
+          notification.innerText = `Vui lòng tải ảnh cho Part ${part}!`;
+          return;
+        }
         const answerKeyInput = document.getElementById(`answer-key-part${part}`).value.trim();
         const answers = answerKeyInput.split(",").map(a => a.trim().toUpperCase());
         if (answers.length !== partAnswerCounts[part - 1] || !answers.every(a => ["A", "B", "C", "D"].includes(a))) {
