@@ -51,7 +51,7 @@
           required
         />
         <button
-          type Bleu="submit"
+          type="submit"
           class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
         >
           Xác nhận
@@ -67,8 +67,15 @@
       <div id="submitted-count" class="text-lg font-semibold mb-4"></div>
       <p id="quiz-status" class="text-lg font-semibold mb-4"></p>
 
+      <!-- Quiz Selection -->
+      <div id="quiz-selection" class="mb-6">
+        <h3 class="text-lg font-semibold mb-2">Danh sách đề thi</h3>
+        <div id="quiz-list" class="space-y-2"></div>
+        <button onclick="createNewQuiz()" class="mt-4 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Tạo đề mới</button>
+      </div>
+
       <!-- Step 1: Upload Audio Only -->
-      <div id="admin-step-audio" class="admin-step">
+      <div id="admin-step-audio" class="admin-step hidden">
         <h3 class="text-lg font-semibold mb-2">Bước 1: Tải file nghe (Part 1-4)</h3>
         <input type="file" id="audio-file" accept="audio/mpeg" class="mb-4">
         <button onclick="nextAdminStep(1)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
@@ -272,6 +279,8 @@
     const resultScore = document.getElementById("result-score");
     const resultTime = document.getElementById("result-time");
     const resultSubmitted = document.getElementById("result-submitted");
+    const quizSelection = document.getElementById("quiz-selection");
+    const quizList = document.getElementById("quiz-list");
 
     const wsProtocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
     let socket;
@@ -315,7 +324,7 @@
       adminControls.classList.remove("hidden");
       socket = new WebSocket(wsProtocol + location.host);
       socket.onmessage = handleWebSocketMessage;
-      checkQuizStatus();
+      loadQuizzes();
     };
 
     // Student Name Form Submission
@@ -332,6 +341,46 @@
       socket = new WebSocket(wsProtocol + location.host);
       socket.onmessage = handleWebSocketMessage;
     };
+
+    // Load Quizzes
+    async function loadQuizzes() {
+      const res = await fetch("/quizzes");
+      const quizzes = await res.json();
+      quizList.innerHTML = "";
+      if (quizzes.length === 0) {
+        quizList.innerHTML = "<p>Chưa có đề thi nào.</p>";
+      } else {
+        quizzes.forEach(quiz => {
+          const div = document.createElement("div");
+          div.className = "flex items-center space-x-2";
+          div.innerHTML = `
+            <span>Đề thi ${quiz.quizId}</span>
+            <button onclick="selectQuiz('${quiz.quizId}')" class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">Chọn</button>
+          `;
+          quizList.appendChild(div);
+        });
+      }
+      quizSelection.classList.remove("hidden");
+    }
+
+    // Create New Quiz
+    function createNewQuiz() {
+      quizSelection.classList.add("hidden");
+      document.getElementById("admin-step-audio").classList.remove("hidden");
+    }
+
+    // Select Quiz
+    async function selectQuiz(quizId) {
+      const res = await fetch("/select-quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quizId }),
+      });
+      const result = await res.json();
+      notification.innerText = result.message;
+      quizSelection.classList.add("hidden");
+      startBtn.classList.remove("hidden");
+    }
 
     // Create Question (for quiz)
     const createQuestion = (id, num, part) => {
@@ -482,8 +531,7 @@
       const result = await res.json();
       notification.innerText = result.message;
       document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
-      startBtn.classList.remove("hidden");
-      checkQuizStatus();
+      await loadQuizzes();
     }
 
     // Quiz Part Navigation
@@ -514,20 +562,6 @@
       if (part <= 4) audio.classList.remove("hidden");
       currentQuizPart = part;
       notification.innerText = "";
-    }
-
-    // Check Quiz Status
-    async function checkQuizStatus() {
-      const res = await fetch("/quiz-status");
-      const status = await res.json();
-      if (status.quizExists) {
-        quizStatus.innerText = "Đề thi đã được tạo.";
-        document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
-        startBtn.classList.remove("hidden");
-      } else {
-        quizStatus.innerText = "Chưa có đề thi.";
-        document.getElementById("admin-step-audio").classList.remove("hidden");
-      }
     }
 
     // WebSocket Handler
