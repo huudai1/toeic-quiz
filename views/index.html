@@ -51,7 +51,7 @@
           required
         />
         <button
-          type="submit"
+          type Bleu="submit"
           class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
         >
           Xác nhận
@@ -399,12 +399,23 @@
 
     // Admin Step Navigation
     function nextAdminStep(step) {
-      if (step === 1 && !document.getElementById("audio-file").files[0]) {
-        notification.innerText = "Vui lòng tải file nghe!";
+      // Step 1: Only check for audio file
+      if (step === 1) {
+        if (!document.getElementById("audio-file").files[0]) {
+          notification.innerText = "Vui lòng tải file nghe!";
+          return;
+        }
+        // If audio file is selected, proceed to Step 2 (Part 1)
+        document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
+        document.getElementById("admin-step-part1").classList.remove("hidden");
+        notification.innerText = "";
+        currentAdminStep = step;
         return;
       }
-      if (step >= 1 && step <= 7) {
-        const part = step;
+
+      // Steps 2-8: Check images and answer key for each part
+      if (step >= 2 && step <= 7) {
+        const part = step - 1; // Part 1 is step 2, Part 2 is step 3, ..., Part 7 is step 8
         const imagesInput = document.getElementById(`images-part${part}`);
         if (!imagesInput.files.length) {
           notification.innerText = `Vui lòng tải ảnh cho Part ${part}!`;
@@ -418,6 +429,7 @@
         }
       }
 
+      // Proceed to the next step
       document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
       if (step <= 7) {
         document.getElementById(`admin-step-part${step}`).classList.remove("hidden");
