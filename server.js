@@ -108,7 +108,7 @@ app.get('/quiz-status', (req, res) => {
 
 app.get('/quizzes', async (req, res) => {
   await loadQuizzes();
-  res.json(quizzes.map(quiz => ({ quizId: quiz.quizId })));
+  res.json(quizzes.map(quiz => ({ quizId: quiz.quizId, quizName: quiz.quizName || `Đề ${quiz.quizId}` })));
 });
 
 app.get('/quiz-audio', (req, res) => {
@@ -178,7 +178,7 @@ app.post('/save-quiz', upload.fields([
   { name: 'images-part7' },
 ]), async (req, res) => {
   const quizId = Date.now().toString();
-  const quiz = { quizId, audio: '', images: {}, answerKey: {} };
+  const quiz = { quizId, quizName: req.body.quizName || `Đề ${quizId}`, audio: '', images: {}, answerKey: {} };
 
   if (req.files['audio']) {
     quiz.audio = `/uploads/audio/${req.files['audio'][0].filename}`;
