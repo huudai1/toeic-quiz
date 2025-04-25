@@ -27,7 +27,8 @@
       <h2 class="text-xl font-bold mb-4">Admin: Đăng nhập bằng Google</h2>
       <div id="g_id_onload"
            data-client_id="207656291282-cedkb5qkbeek0s9dbaca2o3ia3svjesv.apps.googleusercontent.com"
-           data-callback="handleAdminCredentialResponse">
+           data-callback="handleAdminCredentialResponse"
+           data-auto_prompt="false">
       </div>
       <div class="g_id_signin" data-type="standard"></div>
       <button onclick="showWelcomeScreen()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
@@ -296,17 +297,17 @@
     let uploadedQuizzes = null;
 
     function showAdminLogin() {
-      console.log("showAdminLogin called");
       welcomeScreen.classList.add("hidden");
       adminLogin.classList.remove("hidden");
       studentLogin.classList.add("hidden");
+      notification.innerText = "";
     }
 
     function showStudentLogin() {
-      console.log("showStudentLogin called");
       welcomeScreen.classList.add("hidden");
       adminLogin.classList.add("hidden");
       studentLogin.classList.remove("hidden");
+      notification.innerText = "";
     }
 
     function showWelcomeScreen() {
@@ -331,14 +332,18 @@
     function initializeWebSocket() {
       try {
         socket = new WebSocket(wsProtocol + location.host);
+        socket.onopen = () => {
+          console.log("WebSocket connected successfully.");
+        };
         socket.onmessage = handleWebSocketMessage;
         socket.onerror = (error) => {
           console.error("WebSocket error:", error);
           notification.innerText = "Không thể kết nối WebSocket. Một số tính năng có thể không hoạt động.";
         };
         socket.onclose = () => {
-          console.log("WebSocket closed.");
+          console.log("WebSocket closed. Attempting to reconnect...");
           socket = null;
+          setTimeout(initializeWebSocket, 3000);
         };
       } catch (error) {
         console.error("Failed to initialize WebSocket:", error);
@@ -348,7 +353,13 @@
 
     window.handleAdminCredentialResponse = async (response) => {
       try {
+        if (!response.credential) {
+          throw new Error("No credential received from Google Sign-In.");
+        }
         const profile = JSON.parse(atob(response.credential.split('.')[1]));
+        if (!profile.email) {
+          throw new Error("Unable to retrieve email from Google profile.");
+        }
         user = { name: profile.name, email: profile.email };
         isAdmin = true;
         adminLogin.classList.add("hidden");
@@ -359,7 +370,7 @@
         await loadQuizzes();
       } catch (error) {
         console.error("Error during Admin login:", error);
-        notification.innerText = "Đăng nhập Admin thất bại. Vui lòng thử lại.";
+        notification.innerText = "Đăng nhập Admin thất bại. Vui lòng thử lại hoặc kiểm tra Client ID.";
         showWelcomeScreen();
       }
     };
