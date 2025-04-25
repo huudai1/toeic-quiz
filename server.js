@@ -10,7 +10,12 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json());
-app.use(express.static("public"));
+app.use(express.static("public", {
+  index: "index.html",
+  setHeaders: (res, path) => {
+    console.log(`Serving file: ${path}`);
+  }
+}));
 
 const quizzesFile = path.join(__dirname, "quizzes.json");
 const resultsFile = path.join(__dirname, "results.json");
@@ -20,7 +25,7 @@ let currentQuiz = null;
 let results = [];
 let clients = new Set();
 
-// Ensure directories exist
+// Đảm bảo thư mục tồn tại
 const ensureDirectories = async () => {
   const directories = [
     path.join(__dirname, "public/uploads/audio"),
@@ -30,6 +35,7 @@ const ensureDirectories = async () => {
     try {
       if (!fsSync.existsSync(dir)) {
         await fs.mkdir(dir, { recursive: true });
+        console.log(`Created directory: ${dir}`);
       }
     } catch (err) {
       console.error(`Error creating directory ${dir}:`, err);
@@ -106,7 +112,7 @@ async function loadResults() {
 loadQuizzes();
 loadResults();
 
-app.get("/quizzes", async (req, res) => {
+app.get('/quizzes', async (req, res) => {
   const email = req.query.email;
   if (email) {
     res.json(quizzes.filter((quiz) => quiz.createdBy === email));
@@ -120,19 +126,19 @@ app.get("/quizzes", async (req, res) => {
 });
 
 app.post(
-  "/save-quiz",
+  '/save-quiz',
   upload.fields([
-    { name: "audio-part1", maxCount: 1 },
-    { name: "audio-part2", maxCount: 1 },
-    { name: "audio-part3", maxCount: 1 },
-    { name: "audio-part4", maxCount: 1 },
-    { name: "images-part1" },
-    { name: "images-part2" },
-    { name: "images-part3" },
-    { name: "images-part4" },
-    { name: "images-part5" },
-    { name: "images-part6" },
-    { name: "images-part7" },
+    { name: 'audio-part1', maxCount: 1 },
+    { name: 'audio-part2', maxCount: 1 },
+    { name: 'audio-part3', maxCount: 1 },
+    { name: 'audio-part4', maxCount: 1 },
+    { name: 'images-part1' },
+    { name: 'images-part2' },
+    { name: 'images-part3' },
+    { name: 'images-part4' },
+    { name: 'images-part5' },
+    { name: 'images-part6' },
+    { name: 'images-part7' },
   ]),
   async (req, res) => {
     try {
@@ -165,25 +171,25 @@ app.post(
 
       quizzes.push(quiz);
       await saveQuizzes();
-      res.json({ message: "Quiz saved successfully!" });
+      res.json({ message: 'Quiz saved successfully!' });
     } catch (err) {
-      console.error("Error saving quiz:", err);
-      res.status(500).json({ message: "Error saving quiz" });
+      console.error('Error saving quiz:', err);
+      res.status(500).json({ message: 'Error saving quiz' });
     }
   }
 );
 
-app.delete("/delete-quiz/:quizId", async (req, res) => {
+app.delete('/delete-quiz/:quizId', async (req, res) => {
   try {
     const quizId = req.params.quizId;
     const quizIndex = quizzes.findIndex((quiz) => quiz.quizId === quizId);
     if (quizIndex === -1) {
-      return res.status(404).json({ message: "Quiz not found" });
+      return res.status(404).json({ message: 'Quiz not found' });
     }
 
     const quiz = quizzes[quizIndex];
     for (let part in quiz.audio) {
-      const audioPath = path.join(__dirname, "public", quiz.audio[part].substring(1));
+      const audioPath = path.join(__dirname, 'public', quiz.audio[part].substring(1));
       try {
         if (fsSync.existsSync(audioPath)) {
           await fs.unlink(audioPath);
@@ -195,7 +201,7 @@ app.delete("/delete-quiz/:quizId", async (req, res) => {
 
     for (let part in quiz.images) {
       for (let imagePath of quiz.images[part]) {
-        const fullPath = path.join(__dirname, "public", imagePath.substring(1));
+        const fullPath = path.join(__dirname, 'public', imagePath.substring(1));
         try {
           if (fsSync.existsSync(fullPath)) {
             await fs.unlink(fullPath);
@@ -209,54 +215,54 @@ app.delete("/delete-quiz/:quizId", async (req, res) => {
     quizzes.splice(quizIndex, 1);
     if (currentQuiz && currentQuiz.quizId === quizId) {
       currentQuiz = null;
-      broadcast({ type: "quizStatus", quizExists: false });
+      broadcast({ type: 'quizStatus', quizExists: false });
     }
     await saveQuizzes();
-    res.json({ message: "Quiz deleted successfully!" });
+    res.json({ message: 'Quiz deleted successfully!' });
   } catch (err) {
-    console.error("Error deleting quiz:", err);
-    res.status(500).json({ message: "Error deleting quiz" });
+    console.error('Error deleting quiz:', err);
+    res.status(500).json({ message: 'Error deleting quiz' });
   }
 });
 
-app.post("/select-quiz", (req, res) => {
+app.post('/select-quiz', (req, res) => {
   const { quizId } = req.body;
   if (!quizId) {
-    return res.status(400).json({ message: "Quiz ID is required" });
+    return res.status(400).json({ message: 'Quiz ID is required' });
   }
   const quiz = quizzes.find((q) => q.quizId === quizId);
   if (!quiz) {
-    return res.status(404).json({ message: "Quiz not found" });
+    return res.status(404).json({ message: 'Quiz not found' });
   }
   currentQuiz = quiz;
-  broadcast({ type: "quizStatus", quizExists: true });
-  res.json({ message: "Quiz selected successfully!" });
+  broadcast({ type: 'quizStatus', quizExists: true });
+  res.json({ message: 'Quiz selected successfully!' });
 });
 
-app.get("/quiz-audio", (req, res) => {
+app.get('/quiz-audio', (req, res) => {
   if (!currentQuiz || !currentQuiz.audio) {
-    return res.status(404).json({ message: "No audio available" });
+    return res.status(404).json({ message: 'No audio available' });
   }
-  const part = req.query.part || "part1";
+  const part = req.query.part || 'part1';
   res.json({ audio: currentQuiz.audio[part] });
 });
 
-app.get("/images", (req, res) => {
+app.get('/images', (req, res) => {
   if (!currentQuiz) {
-    return res.status(404).json({ message: "No quiz selected" });
+    return res.status(404).json({ message: 'No quiz selected' });
   }
   const part = req.query.part || 1;
   res.json(currentQuiz.images[`part${part}`] || []);
 });
 
-app.post("/submit", async (req, res) => {
+app.post('/submit', async (req, res) => {
   if (!currentQuiz) {
-    return res.status(404).json({ message: "No quiz selected" });
+    return res.status(404).json({ message: 'No quiz selected' });
   }
 
   const { username, answers } = req.body;
   if (!username || !answers) {
-    return res.status(400).json({ message: "Username and answers are required" });
+    return res.status(400).json({ message: 'Username and answers are required' });
   }
   let score = 0;
   const answerKey = currentQuiz.answerKey;
@@ -272,54 +278,54 @@ app.post("/submit", async (req, res) => {
   const result = { username, score, timestamp: Date.now() };
   results.push(result);
   await saveResults();
-  broadcast({ type: "submittedCount", count: results.length });
+  broadcast({ type: 'submittedCount', count: results.length });
   res.json({ score });
 });
 
-app.get("/results", (req, res) => {
+app.get('/results', (req, res) => {
   res.json(results);
 });
 
-app.post("/reset", async (req, res) => {
+app.post('/reset', async (req, res) => {
   results = [];
   await saveResults();
-  broadcast({ type: "submittedCount", count: 0 });
-  res.json({ message: "Quiz reset successfully!" });
+  broadcast({ type: 'submittedCount', count: 0 });
+  res.json({ message: 'Quiz reset successfully!' });
 });
 
-app.get("/download-quizzes", (req, res) => {
-  res.setHeader("Content-Disposition", "attachment; filename=quizzes.json");
-  res.setHeader("Content-Type", "application/json");
+app.get('/download-quizzes', (req, res) => {
+  res.setHeader('Content-Disposition', 'attachment; filename=quizzes.json');
+  res.setHeader('Content-Type', 'application/json');
   res.send(JSON.stringify(quizzes, null, 2));
 });
 
 app.post(
-  "/upload-quizzes",
-  upload.fields([{ name: "quizzes", maxCount: 1 }]),
+  '/upload-quizzes',
+  upload.fields([{ name: 'quizzes', maxCount: 1 }]),
   async (req, res) => {
     try {
       if (!req.files.quizzes) {
-        return res.status(400).json({ message: "No quizzes.json file uploaded" });
+        return res.status(400).json({ message: 'No quizzes.json file uploaded' });
       }
       const file = req.files.quizzes[0];
-      const data = await fs.readFile(file.path, "utf8");
+      const data = await fs.readFile(file.path, 'utf8');
       const uploadedQuizzes = JSON.parse(data);
       quizzes = uploadedQuizzes;
       await saveQuizzes();
       await fs.unlink(file.path);
-      res.json({ message: "Quizzes uploaded successfully!" });
+      res.json({ message: 'Quizzes uploaded successfully!' });
     } catch (err) {
-      console.error("Error uploading quizzes:", err);
-      res.status(500).json({ message: "Error uploading quizzes" });
+      console.error('Error uploading quizzes:', err);
+      res.status(500).json({ message: 'Error uploading quizzes' });
     }
   }
 );
 
 app.post(
-  "/upload-files",
+  '/upload-files',
   upload.fields([
-    { name: "audio", maxCount: 100 },
-    { name: "images", maxCount: 100 },
+    { name: 'audio', maxCount: 100 },
+    { name: 'images', maxCount: 100 },
   ]),
   async (req, res) => {
     try {
@@ -329,11 +335,21 @@ app.post(
       const imagePaths = imageFiles.map((file) => `/uploads/images/${file.filename}`);
       res.json({ audio: audioPaths, images: imagePaths });
     } catch (err) {
-      console.error("Error uploading files:", err);
-      res.status(500).json({ message: "Error uploading files" });
+      console.error('Error uploading files:', err);
+      res.status(500).json({ message: 'Error uploading files' });
     }
   }
 );
+
+// Route mặc định để phục vụ index.html
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'), (err) => {
+    if (err) {
+      console.error('Error serving index.html:', err);
+      res.status(500).send('Internal Server Error');
+    }
+  });
+});
 
 function broadcast(message) {
   clients.forEach((client) => {
@@ -349,31 +365,31 @@ const server = app.listen(port, () => {
 
 const wss = new WebSocketServer({ server });
 
-wss.on("connection", (ws) => {
+wss.on('connection', (ws) => {
   clients.add(ws);
-  broadcast({ type: "participantCount", count: clients.size });
-  broadcast({ type: "submittedCount", count: results.length });
+  broadcast({ type: 'participantCount', count: clients.size });
+  broadcast({ type: 'submittedCount', count: results.length });
   if (currentQuiz) {
-    ws.send(JSON.stringify({ type: "quizStatus", quizExists: true }));
+    ws.send(JSON.stringify({ type: 'quizStatus', quizExists: true }));
   }
 
-  ws.on("message", (message) => {
+  ws.on('message', (message) => {
     try {
       const msg = JSON.parse(message);
-      if (msg.type === "start") {
-        broadcast({ type: "start", timeLimit: msg.timeLimit });
-      } else if (msg.type === "end") {
-        broadcast({ type: "end" });
-      } else if (msg.type === "submitted") {
-        broadcast({ type: "submitted", username: msg.username });
+      if (msg.type === 'start') {
+        broadcast({ type: 'start', timeLimit: msg.timeLimit });
+      } else if (msg.type === 'end') {
+        broadcast({ type: 'end' });
+      } else if (msg.type === 'submitted') {
+        broadcast({ type: 'submitted', username: msg.username });
       }
     } catch (err) {
-      console.error("Error processing WebSocket message:", err);
+      console.error('Error processing WebSocket message:', err);
     }
   });
 
-  ws.on("close", () => {
+  ws.on('close', () => {
     clients.delete(ws);
-    broadcast({ type: "participantCount", count: clients.size });
+    broadcast({ type: 'participantCount', count: clients.size });
   });
 });
