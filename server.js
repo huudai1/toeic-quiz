@@ -5,6 +5,8 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs").promises;
 const fsSync = require("fs");
+const archiver = require("archiver");
+const unzipper = require("unzipper");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -25,11 +27,12 @@ let currentQuiz = null;
 let results = [];
 let clients = new Set();
 
-// Đảm bảo thư mục tồn tại
+// Ensure directories exist
 const ensureDirectories = async () => {
   const directories = [
     path.join(__dirname, "public/uploads/audio"),
     path.join(__dirname, "public/uploads/images"),
+    path.join(__dirname, "temp")
   ];
   for (const dir of directories) {
     try {
@@ -52,7 +55,7 @@ const storage = multer.diskStorage({
     } else if (file.mimetype.startsWith("image/")) {
       cb(null, "public/uploads/images");
     } else {
-      cb(null, "public/uploads");
+      cb(null, "temp");
     }
   },
   filename: (req, file, cb) => {
@@ -225,6 +228,127 @@ app.delete('/delete-quiz/:quizId', async (req, res) => {
   }
 });
 
+app.get('/download-quiz-zip/:quizId', async (req, res) => {
+  try {
+    const quizId = req.params.quizId;
+    const quiz = quizzes.find((q) => q.quizId === quizId);
+    if (!quiz) {
+      return res.status(404).json({ message: 'Quiz not found' });
+    }
+
+    const zip = archiver('zip', { zlib: { level: 9 } });
+    res.attachment(`quiz_${quizId}.zip`);
+    zip.pipe(res);
+
+    // Add quizzes.json to key folder
+    const quizJson = JSON.stringify(quiz, null, 2);
+    zip.append(quizJson, { name: 'key/quizzes.json' });
+
+    // Add audio files
+    for (let i = 1; i <= 4; i++) {
+      const audioPath = quiz.audio[`part${i}`];
+      if (audioPath) {
+        const fullPath = path.join(__dirname, 'public', audioPath.substring(1));
+        if (fsSync.existsSync(fullPath)) {
+          zip.file(fullPath, { name: `part${i}/audio/part${i}.mp3` });
+        }
+      }
+    }
+
+    // Add image files
+    for (let i = 1; i <= 7; i++) {
+      const images = quiz.images[`part${i}`] || [];
+      for (let imagePath of images) {
+        const fullPath = path.join(__dirname, 'public', imagePath.substring(1));
+        if (fsSync.existsSync(fullPath)) {
+          zip.file(fullPath, { name: `part${i}/images/${path.basename(imagePath)}` });
+        }
+      }
+    }
+
+    await zip.finalize();
+  } catch (err) {
+    console.error('Error creating ZIP:', err);
+    res.status(500).json({ message: 'Error creating ZIP file' });
+  }
+});
+
+app.post(
+  '/upload-quizzes-zip',
+  upload.single('quizzes'),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No ZIP file uploaded' });
+      }
+
+      const zipPath = req.file.path;
+      const extractPath = path.join(__dirname, 'temp', uuidv4());
+      await fs.mkdir(extractPath, { recursive: true });
+
+      // Extract ZIP
+      await new Promise((resolve, reject) => {
+        fsSync.createReadStream(zipPath)
+          .pipe(unzipper.Extract({ path: extractPath }))
+          .on('close', resolve)
+          .on('error', reject);
+      });
+
+      // Read quizzes.json
+      const quizzesJsonPath = path.join(extractPath, 'key', 'quizzes.json');
+      if (!fsSync.existsSync(quizzesJsonPath)) {
+        await fs.rm(extractPath, { recursive: true, force: true });
+        await fs.unlink(zipPath);
+        return res.status(400).json({ message: 'Missing key/quizzes.json in ZIP' });
+      }
+
+      const quizData = JSON.parse(await fs.readFile(quizzesJsonPath, 'utf8'));
+      const newQuizId = uuidv4();
+      quizData.quizId = newQuizId;
+
+      // Process audio files
+      for (let i = 1; i <= 4; i++) {
+        const audioSrcPath = path.join(extractPath, `part${i}`, 'audio', `part${i}.mp3`);
+        if (fsSync.existsSync(audioSrcPath)) {
+          const audioDestPath = path.join(__dirname, 'public/uploads/audio', `${newQuizId}_part${i}.mp3`);
+          await fs.copyFile(audioSrcPath, audioDestPath);
+          quizData.audio[`part${i}`] = `/uploads/audio/${path.basename(audioDestPath)}`;
+        } else {
+          delete quizData.audio[`part${i}`];
+        }
+      }
+
+      // Process image files
+      for (let i = 1; i <= 7; i++) {
+        const imagesDir = path.join(extractPath, `part${i}`, 'images');
+        quizData.images[`part${i}`] = [];
+        if (fsSync.existsSync(imagesDir)) {
+          const imageFiles = await fs.readdir(imagesDir);
+          for (const imageFile of imageFiles) {
+            const imageSrcPath = path.join(imagesDir, imageFile);
+            const imageDestPath = path.join(__dirname, 'public/uploads/images', `${newQuizId}_part${i}_${imageFile}`);
+            await fs.copyFile(imageSrcPath, imageDestPath);
+            quizData.images[`part${i}`].push(`/uploads/images/${path.basename(imageDestPath)}`);
+          }
+        }
+      }
+
+      // Add quiz to quizzes array
+      quizzes.push(quizData);
+      await saveQuizzes();
+
+      // Cleanup
+      await fs.rm(extractPath, { recursive: true, force: true });
+      await fs.unlink(zipPath);
+
+      res.json({ message: 'Quiz uploaded successfully!' });
+    } catch (err) {
+      console.error('Error uploading ZIP:', err);
+      res.status(500).json({ message: 'Error uploading ZIP file' });
+    }
+  }
+);
+
 app.post('/select-quiz', (req, res) => {
   const { quizId } = req.body;
   if (!quizId) {
@@ -341,7 +465,6 @@ app.post(
   }
 );
 
-// Route mặc định để phục vụ index.html
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'), (err) => {
     if (err) {
