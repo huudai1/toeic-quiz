@@ -6,7 +6,6 @@
   <title>TOEIC Quiz</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-6">
   <audio id="audio" controls class="fixed top-4 right-4 z-50 hidden">
@@ -51,7 +50,6 @@
       <div id="admin-options" class="mt-4 hidden">
         <button onclick="createNewQuiz()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mr-2">Tạo đề mới</button>
         <button onclick="showUploadQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Nhập đề thi</button>
-        <button onclick="downloadQuizzes()" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 mr-2">Tải toàn bộ đề</button>
       </div>
       <div id="admin-controls" class="mt-4 hidden">
         <div id="participant-count" class="text-lg font-semibold mb-2"></div>
@@ -179,7 +177,7 @@
           <div id="quiz-part1" class="quiz-part">
             <h2 class="text-xl font-bold">Part 1 (6 câu)</h2>
             <div id="section1" class="space-y-4"></div>
-            <button type="button" onclick="nextQuizPart(1)" class="bg-blue-500 text-white px寻常 py-2 rounded hover:bg-blue-600 mt-4">Tiếp theo</button>
+            <button type="button" onclick="nextQuizPart(1)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4">Tiếp theo</button>
           </div>
           <div id="quiz-part2" class="quiz-part hidden">
             <h2 class="text-xl font-bold">Part 2 (25 câu)</h2>
@@ -200,26 +198,20 @@
             <button type="button" onclick="nextQuizPart(4)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4">Tiếp theo</button>
           </div>
           <div id="quiz-part5" class="quiz-part hidden">
-            <h2 class="text-xl font-bold">Part 5 (30 câu)</h2>
+            <h2 class="text-xl font226-bold">Part 5 (30 câu)</h2>
             <div id="section5" class="space-y-4"></div>
-            <label class="block mt-4">Dãy đáp án (C,D,A,B,...):</label>
-            <textarea id="array-answers-part5" class="w-full p-2 border rounded" rows="3"></textarea>
             <button type="button" onclick="prevQuizPart(4)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mt-4">Quay lại</button>
             <button type="button" onclick="nextQuizPart(5)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4">Tiếp theo</button>
           </div>
           <div id="quiz-part6" class="quiz-part hidden">
             <h2 class="text-xl font-bold">Part 6 (16 câu)</h2>
             <div id="section6" class="space-y-4"></div>
-            <label class="block mt-4">Dãy đáp án (C,D,A,B,...):</label>
-            <textarea id="array-answers-part6" class="w-full p-2 border rounded" rows="3"></textarea>
             <button type="button" onclick="prevQuizPart(5)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mt-4">Quay lại</button>
             <button type="button" onclick="nextQuizPart(6)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4">Tiếp theo</button>
           </div>
           <div id="quiz-part7" class="quiz-part hidden">
             <h2 class="text-xl font-bold">Part 7 (54 câu)</h2>
             <div id="section7" class="space-y-4"></div>
-            <label class="block mt-4">Dãy đáp án (C,D,A,B,...):</label>
-            <textarea id="array-answers-part7" class="w-full p-2 border rounded" rows="3"></textarea>
             <button type="button" onclick="prevQuizPart(6)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mt-4">Quay lại</button>
             <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mt-4">Nộp bài</button>
           </div>
@@ -431,9 +423,9 @@
       }
     }
 
-    async function downloadQuizzes() {
+    async function downloadQuizzes(quizId) {
       try {
-        const res = await fetch(`/download-quizzes-zip?email=${encodeURIComponent(user.email)}`);
+        const res = await fetch(`/download-quiz-zip/${quizId}`);
         if (!res.ok) {
           throw new Error(`HTTP error! Status: ${res.status}`);
         }
@@ -441,14 +433,14 @@
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = "quizzes_complete.zip";
+        link.download = `quiz_${quizId}.zip`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
-        notification.innerText = "Đã tải xuống file ZIP chứa toàn bộ đề thi.";
+        notification.innerText = "Đã tải xuống file ZIP chứa đề thi.";
       } catch (error) {
-        console.error("Error downloading quizzes:", error);
+        console.error("Error downloading quiz:", error);
         notification.innerText = "Lỗi khi tải xuống file ZIP. Vui lòng thử lại.";
       }
     }
@@ -471,8 +463,9 @@
             if (isAdmin) {
               div.innerHTML = `
                 <span>${quiz.quizName}</span>
-                <button onclick="selectQuiz('${quiz.quizId}')" class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">Chọn để kiểm soát cornice</button>
+                <button onclick="selectQuiz('${quiz.quizId}')" class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">Chọn để kiểm soát</button>
                 <button onclick="startQuiz('${quiz.quizId}')" class="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">Bắt đầu làm bài</button>
+                <button onclick="downloadQuizzes('${quiz.quizId}')" class="bg-purple-500 text-white px-2 py-1 rounded hover:bg-purple-600">Tải xuống</button>
                 <button onclick="deleteQuiz('${quiz.quizId}')" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Xóa</button>
               `;
             } else {
@@ -569,6 +562,10 @@
     }
 
     async function loadAudio(part) {
+      if (part > 4) {
+        audio.classList.add("hidden");
+        return;
+      }
       try {
         const audioRes = await fetch(`/quiz-audio?part=part${part}`);
         const data = await audioRes.json();
@@ -777,39 +774,19 @@
     }
 
     function nextQuizPart(part) {
-      if (part >= 5) {
-        const arrayInput = document.getElementById(`array Dre-answers-part${part}`).value;
-        if (arrayInput) {
-          const arrayAnswers = arrayInput.split(",").map(a => a.trim().toUpperCase());
-          if (arrayAnswers.length !== partAnswerCounts[part - 1] || !arrayAnswers.every(a => ["A", "B", "C", "D"].includes(a))) {
-            notification.innerText = `Dãy đáp án Part ${part} không hợp lệ!`;
-            return;
-          }
-        }
-      }
-
-      document.querySelectorAll(".quiz-part").forEach(part => part.classList.add("hidden"));
+      document.querySelectorAll(".quiz-part").forEach(p => p.classList.add("hidden"));
       document.getElementById(`quiz-part${part + 1}`).classList.remove("hidden");
       loadImages(part + 1);
-      if (part + 1 <= 4) {
-        loadAudio(part + 1);
-      } else {
-        audio.classList.add("hidden");
-      }
+      loadAudio(part + 1);
       currentQuizPart = part + 1;
       notification.innerText = "";
     }
 
     function prevQuizPart(part) {
-      document.querySelectorAll(".quiz-part").forEach(part => part.classList.add("hidden"));
+      document.querySelectorAll(".quiz-part").forEach(p => p.classList.add("hidden"));
       document.getElementById(`quiz-part${part}`).classList.remove("hidden");
       loadImages(part);
-      if (part <= 4) {
-        loadAudio(part);
-        audio.classList.remove("hidden");
-      } else {
-        audio.classList.add("hidden");
-      }
+      loadAudio(part);
       currentQuizPart = part;
       notification.innerText = "";
     }
@@ -825,26 +802,9 @@
             quizContainer.classList.remove("hidden");
             timerDisplay.classList.remove("hidden");
             audio.classList.remove("hidden");
-            try {
-              fetch("/quiz-audio")
-                .then(res => res.json())
-                .then(data => {
-                  if (data.audio) {
-                    audioSource.src = data.audio;
-                    audio.load();
-                  } else {
-                    notification.innerText = "Không tìm thấy file nghe!";
-                  }
-                })
-                .catch(err => {
-                  notification.innerText = "Lỗi khi tải file nghe!";
-                });
-              loadImages(1);
-              startTimer();
-            } catch (error) {
-              console.error("Error starting quiz via WebSocket:", error);
-              notification.innerText = "Lỗi khi bắt đầu bài thi qua WebSocket.";
-            }
+            loadAudio(1);
+            loadImages(1);
+            startTimer();
           } else {
             startBtn.classList.add("hidden");
             endBtn.classList.remove("hidden");
@@ -935,23 +895,6 @@
       const formData = new FormData(quizForm);
       const answers = {};
       formData.forEach((val, key) => answers[key] = val);
-
-      const arrayParts = [
-        { id: "array-answers-part5", start: 101, count: 30 },
-        { id: "array-answers-part6", start: 131, count: 16 },
-        { id: "array-answers-part7", start: 147, count: 54 },
-      ];
-      arrayParts.forEach(part => {
-        const arrayInput = document.getElementById(part.id).value;
-        if (arrayInput) {
-          const arrayAnswers = arrayInput.split(",").map(a => a.trim().toUpperCase());
-          if (arrayAnswers.length === part.count && arrayAnswers.every(a => ["A", "B", "C", "D"].includes(a))) {
-            for (let i = 0; i < part.count; i++) {
-              answers[`q${part.start + i}`] = arrayAnswers[i];
-            }
-          }
-        }
-      });
 
       try {
         const res = await fetch("/submit", {
