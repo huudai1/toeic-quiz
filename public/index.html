@@ -6,6 +6,7 @@
   <title>TOEIC Quiz</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-6">
   <audio id="audio" controls class="fixed top-4 right-4 z-50 hidden">
@@ -49,8 +50,8 @@
       <div id="quiz-list" class="space-y-2"></div>
       <div id="admin-options" class="mt-4 hidden">
         <button onclick="createNewQuiz()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mr-2">Tạo đề mới</button>
-        <button onclick="showUploadQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Nhập file quizzes.json</button>
-        <button onclick="downloadQuizzes()" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 mr-2">Tải đề xuống</button>
+        <button onclick="showUploadQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Nhập đề thi</button>
+        <button onclick="downloadQuizzes()" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 mr-2">Tải toàn bộ đề</button>
       </div>
       <div id="admin-controls" class="mt-4 hidden">
         <div id="participant-count" class="text-lg font-semibold mb-2"></div>
@@ -76,15 +77,10 @@
     </div>
 
     <div id="upload-quizzes" class="mb-6 hidden">
-      <h3 class="text-lg font-semibold mb-2">Nhập file quizzes.json</h3>
-      <input type="file" id="quizzes-file" accept=".json" class="mb-4">
+      <h3 class="text-lg font-semibold mb-2">Nhập file đề thi (.json hoặc .zip)</h3>
+      <input type="file" id="quizzes-file" accept=".json,.zip" class="mb-4">
       <button onclick="uploadQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Tải lên</button>
       <button onclick="backToQuizList()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
-      <div id="upload-files-section" class="mt-4 hidden">
-        <h4 class="text-lg font-semibold mb-2">Tải lên các file nghe và ảnh</h4>
-        <div id="upload-files-list" class="space-y-2"></div>
-        <button onclick="uploadFiles()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mt-4">Xác nhận</button>
-      </div>
     </div>
 
     <div id="admin-step-audio" class="admin-step hidden">
@@ -173,12 +169,6 @@
       <button onclick="saveQuiz()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Lưu đề thi</button>
     </div>
 
-    <div id="download-files-section" class="mt-4 hidden">
-      <h4 class="text-lg font-semibold mb-2">Tải file nghe và ảnh</h4>
-      <div id="download-files-list" class="space-y-2"></div>
-      <button onclick="backToQuizList()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
-    </div>
-
     <div id="quiz-container" class="flex flex-col md:flex-row hidden">
       <div class="w-full md:w-1/2 pr-0 md:pr-4 overflow-y-auto max-h-screen">
         <h2 class="text-xl font-bold mb-4">Ảnh đề thi</h2>
@@ -189,7 +179,7 @@
           <div id="quiz-part1" class="quiz-part">
             <h2 class="text-xl font-bold">Part 1 (6 câu)</h2>
             <div id="section1" class="space-y-4"></div>
-            <button type="button" onclick="nextQuizPart(1)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4">Tiếp theo</button>
+            <button type="button" onclick="nextQuizPart(1)" class="bg-blue-500 text-white px寻常 py-2 rounded hover:bg-blue-600 mt-4">Tiếp theo</button>
           </div>
           <div id="quiz-part2" class="quiz-part hidden">
             <h2 class="text-xl font-bold">Part 2 (25 câu)</h2>
@@ -264,11 +254,7 @@
     const adminControls = document.getElementById("admin-controls");
     const uploadQuizzesSection = document.getElementById("upload-quizzes");
     const quizzesFileInput = document.getElementById("quizzes-file");
-    const uploadFilesSection = document.getElementById("upload-files-section");
-    const uploadFilesList = document.getElementById("upload-files-list");
     const quizList = document.getElementById("quiz-list");
-    const downloadFilesSection = document.getElementById("download-files-section");
-    const downloadFilesList = document.getElementById("download-files-list");
     const quizContainer = document.getElementById("quiz-container");
     const notification = document.getElementById("notification");
     const quizStatus = document.getElementById("quiz-status");
@@ -294,7 +280,6 @@
     let currentAdminStep = 0;
     let currentQuizPart = 0;
     const partAnswerCounts = [6, 25, 39, 30, 30, 16, 54];
-    let uploadedQuizzes = null;
 
     function showAdminLogin() {
       welcomeScreen.classList.add("hidden");
@@ -319,7 +304,6 @@
       resultScreen.classList.add("hidden");
       document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
       uploadQuizzesSection.classList.add("hidden");
-      downloadFilesSection.classList.add("hidden");
       notification.innerText = "";
       user = null;
       isAdmin = false;
@@ -404,11 +388,7 @@
       document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
       quizContainer.classList.add("hidden");
       resultScreen.classList.add("hidden");
-      downloadFilesSection.classList.add("hidden");
       notification.innerText = "";
-      uploadedQuizzes = null;
-      uploadFilesSection.classList.add("hidden");
-      document.getElementById("quiz-name").value = "";
       loadQuizzes();
     }
 
@@ -425,113 +405,51 @@
     async function uploadQuizzes() {
       const file = quizzesFileInput.files[0];
       if (!file) {
-        notification.innerText = "Vui lòng chọn file quizzes.json!";
+        notification.innerText = "Vui lòng chọn file (.json hoặc .zip)!";
         return;
       }
 
       const formData = new FormData();
       formData.append("quizzes", file);
+
       try {
-        const res = await fetch("/upload-quizzes", {
+        let endpoint = file.name.endsWith('.zip') ? '/upload-quizzes-zip' : '/upload-quizzes';
+        const res = await fetch(endpoint, {
           method: "POST",
           body: formData,
         });
         const result = await res.json();
         notification.innerText = result.message;
-
         if (res.ok) {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            uploadedQuizzes = JSON.parse(e.target.result);
-            displayUploadFiles();
-          };
-          reader.readAsText(file);
+          backToQuizList();
+        } else {
+          throw new Error(result.message || "Upload failed");
         }
       } catch (error) {
         console.error("Error uploading quizzes:", error);
-        notification.innerText = "Lỗi khi tải lên quizzes.json. Vui lòng thử lại.";
+        notification.innerText = "Lỗi khi tải lên file. Vui lòng kiểm tra định dạng file và thử lại.";
       }
     }
 
-    function displayUploadFiles() {
-      uploadFilesSection.classList.remove("hidden");
-      uploadFilesList.innerHTML = "";
-
-      const allFiles = new Set();
-      uploadedQuizzes.forEach(quiz => {
-        for (let part in quiz.audio) {
-          allFiles.add(quiz.audio[part]);
-        }
-        Object.values(quiz.images).forEach(images => {
-          images.forEach(image => allFiles.add(image));
-        });
-      });
-
-      allFiles.forEach(filePath => {
-        const div = document.createElement("div");
-        div.className = "flex items-center space-x-2";
-        const type = filePath.includes('/audio/') ? 'audio' : 'image';
-        div.innerHTML = `
-          <label>${filePath} (${type}):</label>
-          <input type="file" id="file-${filePath}" accept="${type === 'audio' ? 'audio/mpeg' : 'image/*'}" class="flex-1">
-        `;
-        uploadFilesList.appendChild(div);
-      });
-    }
-
-    async function uploadFiles() {
-      const formData = new FormData();
-      const allFiles = new Set();
-      uploadedQuizzes.forEach(quiz => {
-        for (let part in quiz.audio) {
-          allFiles.add(quiz.audio[part]);
-        }
-        Object.values(quiz.images).forEach(images => {
-          images.forEach(image => allFiles.add(image));
-        });
-      });
-
-      for (const filePath of allFiles) {
-        const input = document.getElementById(`file-${filePath}`);
-        if (!input.files[0]) {
-          notification.innerText = `Vui lòng tải file cho ${filePath}!`;
-          return;
-        }
-        const type = filePath.includes('/audio/') ? 'audio' : 'images';
-        formData.append(type, input.files[0]);
-      }
-
+    async function downloadQuizzes() {
       try {
-        const res = await fetch("/upload-files", {
-          method: "POST",
-          body: formData,
-        });
-        const uploadedFiles = await res.json();
-
-        let audioIndex = 0;
-        let imageIndex = 0;
-        uploadedQuizzes.forEach(quiz => {
-          const newAudioPaths = {};
-          for (let part in quiz.audio) {
-            newAudioPaths[part] = uploadedFiles.audio[audioIndex++];
-          }
-          quiz.audio = newAudioPaths;
-          Object.keys(quiz.images).forEach(part => {
-            quiz.images[part] = quiz.images[part].map(() => uploadedFiles.images[imageIndex++]);
-          });
-        });
-
-        await fetch("/upload-quizzes", {
-          method: "POST",
-          body: new FormData().append("quizzes", new Blob([JSON.stringify(uploadedQuizzes)], { type: 'application/json' })),
-        });
-
-        notification.innerText = "Files uploaded successfully!";
-        uploadFilesSection.classList.add("hidden");
-        backToQuizList();
+        const res = await fetch(`/download-quizzes-zip?email=${encodeURIComponent(user.email)}`);
+        if (!res.ok) {
+          throw new Error(`HTTP error! Status: ${res.status}`);
+        }
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "quizzes_complete.zip";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        notification.innerText = "Đã tải xuống file ZIP chứa toàn bộ đề thi.";
       } catch (error) {
-        console.error("Error uploading files:", error);
-        notification.innerText = "Lỗi khi tải lên file. Vui lòng thử lại.";
+        console.error("Error downloading quizzes:", error);
+        notification.innerText = "Lỗi khi tải xuống file ZIP. Vui lòng thử lại.";
       }
     }
 
@@ -553,7 +471,7 @@
             if (isAdmin) {
               div.innerHTML = `
                 <span>${quiz.quizName}</span>
-                <button onclick="selectQuiz('${quiz.quizId}')" class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">Chọn để kiểm soát</button>
+                <button onclick="selectQuiz('${quiz.quizId}')" class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">Chọn để kiểm soát cornice</button>
                 <button onclick="startQuiz('${quiz.quizId}')" class="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">Bắt đầu làm bài</button>
                 <button onclick="deleteQuiz('${quiz.quizId}')" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Xóa</button>
               `;
@@ -587,41 +505,6 @@
       } catch (error) {
         console.error("Error deleting quiz:", error);
         notification.innerText = "Lỗi khi xóa đề thi. Vui lòng thử lại.";
-      }
-    }
-
-    async function downloadQuizzes() {
-      const link = document.createElement("a");
-      link.href = "/download-quizzes";
-      link.download = "quizzes.json";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      try {
-        const res = await fetch(`/quizzes?email=${encodeURIComponent(user.email)}`);
-        const quizzes = await res.json();
-        const allFiles = new Set();
-        quizzes.forEach(quiz => {
-          for (let part in quiz.audio) {
-            allFiles.add(quiz.audio[part]);
-          }
-          Object.values(quiz.images).forEach(images => {
-            images.forEach(image => allFiles.add(image));
-          });
-        });
-
-        downloadFilesSection.classList.remove("hidden");
-        quizListScreen.classList.add("hidden");
-        downloadFilesList.innerHTML = "";
-        allFiles.forEach(filePath => {
-          const div = document.createElement("div");
-          div.innerHTML = `<a href="${filePath}" download class="text-blue-500 underline">${filePath}</a>`;
-          downloadFilesList.appendChild(div);
-        });
-      } catch (error) {
-        console.error("Error downloading quizzes:", error);
-        notification.innerText = "Lỗi khi tải danh sách file. Vui lòng thử lại.";
       }
     }
 
@@ -895,7 +778,7 @@
 
     function nextQuizPart(part) {
       if (part >= 5) {
-        const arrayInput = document.getElementById(`array-answers-part${part}`).value;
+        const arrayInput = document.getElementById(`array Dre-answers-part${part}`).value;
         if (arrayInput) {
           const arrayAnswers = arrayInput.split(",").map(a => a.trim().toUpperCase());
           if (arrayAnswers.length !== partAnswerCounts[part - 1] || !arrayAnswers.every(a => ["A", "B", "C", "D"].includes(a))) {
