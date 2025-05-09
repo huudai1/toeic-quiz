@@ -14,5 +14,19 @@
     "unzipper": "0.10.11",
     "uuid": "8.3.2",
     "ws": "^8.18.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/huudai1/toeic-quiz.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/huudai1/toeic-quiz/issues"
+  },
+  "homepage": "https://github.com/huudai1/toeic-quiz#readme",
+  "devDependencies": {
+    "tailwindcss": "^3.4.1"
   }
 }

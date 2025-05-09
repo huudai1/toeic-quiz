@@ -178,7 +178,7 @@
       <input type="file" id="images-part6" multiple accept="image/*" class="mb-4">
       <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
       <textarea id="answer-key-part6" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 16 đáp án, ví dụ: A,D,C,B,..."></textarea>
-      <button onclick="prevAdminStep(6)" class="bg-gray-500 text-white px-4ادراج4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
+      <button onclick="prevAdminStep(6)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
       <button onclick="nextAdminStep(7)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
     </div>
 
@@ -409,7 +409,7 @@
       try {
         console.log("Admin login button clicked");
         welcomeScreen.classList.add("hidden");
-        adminLogin.classList.remove("hidden");
+        adminLogin.classList.remove("hiddenigian");
         studentLogin.classList.add("hidden");
         roomCodeScreen.classList.add("hidden");
         quizListScreen.classList.add("hidden");
@@ -489,7 +489,7 @@
           }
         };
         socket.onmessage = (event) => {
-          console.log("WebSocket message:", event.data);
+          console.log("WebSocket message received:", event.data);
           handleWebSocketMessage(event);
         };
         socket.onerror = (error) => {
@@ -727,6 +727,7 @@
       try {
         if (!quizId) throw new Error("No quizId provided");
         currentQuizId = quizId;
+        console.log("Starting quiz with ID:", quizId);
         const res = await fetch("/select-quiz", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -742,15 +743,20 @@
           audio.classList.remove("hidden");
           document.getElementById("quiz-part1").classList.remove("hidden");
           console.log("Quiz container shown for student");
-          await loadAudio(1);
-          await loadImages(1);
+          console.log("Quiz container visible:", !quizContainer.classList.contains("hidden"));
+          console.log("Part 1 visible:", !document.getElementById("quiz-part1").classList.contains("hidden"));
+          console.log("Audio visible:", !audio.classList.contains("hidden"));
+          console.log("Timer visible:", !timerDisplay.classList.contains("hidden"));
+          showNotification("Đang tải bài thi...", 0);
+          await Promise.all([loadAudio(1), loadImages(1)]);
+          showNotification("Bài thi đã bắt đầu!");
           startTimer();
         } else {
-          throw new Error(result.message);
+          throw new Error(result.message || "Failed to select quiz");
         }
       } catch (error) {
         console.error("Start quiz error:", error);
-        showNotification("Lỗi bắt đầu bài thi.", 5000, true);
+        showNotification(`Lỗi bắt đầu bài thi: ${error.message}`, 5000, true);
         showRoomCodeScreen();
       }
     }
@@ -763,6 +769,7 @@
         }
         const res = await fetch(`/quiz-audio?part=part${part}`);
         const data = await res.json();
+        console.log(`Audio response for Part ${part}:`, data);
         if (data.audio) {
           audioSource.src = data.audio;
           audio.load();
@@ -783,7 +790,7 @@
         <label class="font-semibold">Câu ${num} (Part ${part})</label>
         <div class="mt-2 space-y-2">
           <label class="block"><input type="radio" name="${id}" value="A" class="mr-2"> A</label>
-          <label class="block"><input type="radio" name="${id}" value="Bස4B" class="mr-2"> B</label>
+          <label class="block"><input type="radio" name="${id}" value="B" class="mr-2"> B</label>
           <label class="block"><input type="radio" name="${id}" value="C" class="mr-2"> C</label>
           <label class="block"><input type="radio" name="${id}" value="D" class="mr-2"> D</label>
         </div>
@@ -832,7 +839,11 @@
       try {
         const res = await fetch(`/images?part=${part}`);
         const images = await res.json();
+        console.log(`Images response for Part ${part}:`, images);
         imageDisplay.innerHTML = `<h3 class="text-lg font-semibold mb-2">Part ${part}</h3>`;
+        if (!images.length) {
+          showNotification(`Không có ảnh cho Part ${part}.`, 5000, true);
+        }
         images.forEach(url => {
           const img = document.createElement("img");
           img.src = url;
@@ -995,13 +1006,20 @@
         switch (msg.type) {
           case "joinRoom":
             if (isAdmin) {
-              participants = msg.participants?.map(name => ({ name, submitted: false })) || [];
+              if (!msg.participants || !Array.isArray(msg.participants)) {
+                console.error("Invalid participants data:", msg.participants);
+                showNotification("Dữ liệu học sinh không hợp lệ.", 5000, true);
+                return;
+              }
+              participants = msg.participants.map(name => ({ name, submitted: false }));
               updateParticipantsList();
+              console.log("Participants updated:", participants);
             }
             break;
           case "startCountdown":
             if (!isAdmin) {
               if (!msg.quizId) {
+                console.error("No quizId in startCountdown message:", msg);
                 showNotification("Lỗi: Không có quizId.", 5000, true);
                 return;
               }
@@ -1009,12 +1027,17 @@
               countdownStart.classList.remove("hidden");
               let countdown = 3;
               countdownStart.innerText = `Bắt đầu trong ${countdown}...`;
+              console.log("Starting countdown for quiz:", currentQuizId);
               const interval = setInterval(() => {
                 countdown--;
                 if (countdown <= 0) {
                   clearInterval(interval);
                   countdownStart.classList.add("hidden");
-                  startQuiz(currentQuizId);
+                  startQuiz(currentQuizId).catch(error => {
+                    console.error("Failed to start quiz:", error);
+                    showNotification("Lỗi khởi động bài thi.", 5000, true);
+                    showRoomCodeScreen();
+                  });
                 } else {
                   countdownStart.innerText = `Bắt đầu trong ${countdown}...`;
                 }
@@ -1088,41 +1111,53 @@
 
     startBtn.onclick = () => {
       try {
+        console.log("Start button clicked, participants:", participants);
         if (participants.length === 0) {
-          showNotification("Chưa có học sinh tham gia!", 5000, true);
-          return;
-        }
-        const timeLimit = parseInt(timeLimitInput.value) * 60;
-        if (isNaN(timeLimit) || timeLimit <= 0 || timeLimit > 7200) {
-          showNotification("Thời gian không hợp lệ! Mặc định 120 phút.", 5000, true);
-          timeLimitInput.value = 120;
-          return;
-        }
-        if (socket && socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify({ type: "startCountdown", timeLimit, quizId: currentQuizId }));
-          console.log(`Sent startCountdown: timeLimit=${timeLimit}, quizId=${currentQuizId}`);
-          countdownStart.classList.remove("hidden");
-          let countdown = 3;
-          countdownStart.innerText = `Bắt đầu trong ${countdown}...`;
-          const interval = setInterval(() => {
-            countdown--;
-            if (countdown <= 0) {
-              clearInterval(interval);
-              countdownStart.classList.add("hidden");
-              socket.send(JSON.stringify({ type: "start", timeLimit }));
-              console.log(`Sent start: timeLimit=${timeLimit}`);
+          showNotification("Đang kiểm tra học sinh...", 2000);
+          setTimeout(() => {
+            if (participants.length === 0) {
+              showNotification("Chưa có học sinh tham gia!", 5000, true);
             } else {
-              countdownStart.innerText = `Bắt đầu trong ${countdown}...`;
+              proceedToStartQuiz();
             }
-          }, 1000);
-        } else {
-          showNotification("Lỗi kết nối WebSocket.", 5000, true);
+          }, 1000); // Wait 1 second for WebSocket updates
+          return;
         }
+        proceedToStartQuiz();
       } catch (error) {
         console.error("Error in startBtn.onclick:", error);
         showNotification("Lỗi bắt đầu bài thi.", 5000, true);
       }
     };
+
+    function proceedToStartQuiz() {
+      const timeLimit = parseInt(timeLimitInput.value) * 60;
+      if (isNaN(timeLimit) || timeLimit <= 0 || timeLimit > 7200) {
+        showNotification("Thời gian không hợp lệ! Mặc định 120 phút.", 5000, true);
+        timeLimitInput.value = 120;
+        return;
+      }
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "startCountdown", timeLimit, quizId: currentQuizId }));
+        console.log(`Sent startCountdown: timeLimit=${timeLimit}, quizId=${currentQuizId}`);
+        countdownStart.classList.remove("hidden");
+        let countdown = 3;
+        countdownStart.innerText = `Bắt đầu trong ${countdown}...`;
+        const interval = setInterval(() => {
+          countdown--;
+          if (countdown <= 0) {
+            clearInterval(interval);
+            countdownStart.classList.add("hidden");
+            socket.send(JSON.stringify({ type: "start", timeLimit }));
+            console.log(`Sent start: timeLimit=${timeLimit}`);
+          } else {
+            countdownStart.innerText = `Bắt đầu trong ${countdown}...`;
+          }
+        }, 1000);
+      } else {
+        showNotification("Lỗi kết nối WebSocket.", 5000, true);
+      }
+    }
 
     endBtn.onclick = () => {
       try {
@@ -1157,37 +1192,7 @@
         const res = await fetch("/results");
         const results = await res.json();
         if (isAdmin) {
-          const sortedResults = results.sort((a, b) => b.score - a.score);
-          const top = sortedResults[0];
-          const second = sortedResults[1];
-          const average = results.length > 0 ? results.reduce((sum, r) => sum + r.score, 0) / results.length : 0;
-          socket.send(JSON.stringify({
-            type: "results",
-            results,
-            top,
-            second,
-            average
-          }));
-          console.log("Sent results:", { results, top, second, average });
-        }
-      } catch (error) {
-        console.error("Fetch results error:", error);
-        showNotification("Lỗi tải kết quả.", 5000, true);
-      }
-    }
-
-    async function submitQuiz() {
-      try {
-        const formData = new FormData(quizForm);
-        const answers = {};
-        formData.forEach((val, key) => answers[key] = val);
-        const res = await fetch("/submit", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: user.name, answers, roomCode: currentRoomCode }),
-        });
-        const result = await res.json();
-        if (res.ok) Ascent4Bokmark("result-screen");
+          const sortedResults = results.sort((a, b) zaak4Bookmark("result-screen");
         quizContainer.classList.add("hidden");
         resultScreen.classList.remove("hidden");
         timerDisplay.classList.add("hidden");
