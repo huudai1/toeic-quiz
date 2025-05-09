@@ -13,8 +13,8 @@
     Your browser does not support the audio element.
   </audio>
   <div id="timer" class="fixed top-4 left-4 text-lg font-bold hidden"></div>
-  <!-- Nút mũi tên và khung bộ đếm ngược -->
-  <div id="countdown-toggle" class="fixed top-4 right-16 z-50 cursor-pointer">
+  <!-- Nút mũi tên và khung bộ đếm ngược (chỉ cho admin) -->
+  <div id="countdown-toggle" class="fixed top-4 right-16 z-50 cursor-pointer hidden">
     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
     </svg>
@@ -50,6 +50,15 @@
       </form>
     </div>
 
+    <div id="room-code-screen" class="mb-6 hidden">
+      <h2 class="text-xl font-bold mb-4">Học sinh: Nhập mã phòng thi</h2>
+      <form id="room-code-form">
+        <input type="text" id="room-code" class="w-full p-2 border rounded mb-4" placeholder="Nhập mã phòng (6 số)" required pattern="\d{6}" />
+        <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Vào phòng</button>
+        <button type="button" onclick="showStudentLogin()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      </form>
+    </div>
+
     <div id="quiz-list-screen" class="mb-6 hidden">
       <h2 class="text-xl font-bold mb-4">Danh sách đề thi</h2>
       <div id="quiz-status" class="text-lg font-semibold mb-4"></div>
@@ -58,27 +67,37 @@
         <button onclick="createNewQuiz()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mr-2">Tạo đề mới</button>
         <button onclick="showUploadQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Nhập đề thi</button>
       </div>
-      <div id="admin-controls" class="mt-4 hidden">
-        <div id="participant-count" class="text-lg font-semibold mb-2"></div>
-        <div id="submitted-count" class="text-lg font-semibold mb-2"></div>
-        <button id="startBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2 hidden">Bắt đầu làm bài</button>
-        <button id="endBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 mr-2 hidden">Kết thúc</button>
-        <button id="reuseBtn" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 mr-2 hidden">Dùng lại đề cho lớp mới</button>
-        <div id="results-table" class="mt-4 hidden">
-          <h3 class="text-lg font-bold mb-2">Kết quả</h3>
-          <table class="w-full border-collapse">
-            <thead>
-              <tr class="bg-gray-200">
-                <th class="border p-2">Tên</th>
-                <th class="border p-2">Điểm</th>
-                <th class="border p-2">Thời gian nộp</th>
-              </tr>
-            </thead>
-            <tbody id="results-body"></tbody>
-          </table>
+      <button onclick="logout()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Đăng xuất</button>
+    </div>
+
+    <div id="room-screen" class="mb-6 hidden">
+      <h2 class="text-xl font-bold mb-4">Phòng thi</h2>
+      <div id="room-code-display" class="text-lg font-semibold mb-4"></div>
+      <div id="participant-count" class="text-lg font-semibold mb-4"></div>
+      <div class="flex space-x-4 mb-4">
+        <input type="number" id="time-limit" class="p-2 border rounded" placeholder="Thời gian (phút, tối đa 120)" min="1" max="120" value="120" required />
+        <button id="startBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Bắt đầu</button>
+        <button id="endBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 hidden">Kết thúc</button>
+        <button id="interruptBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 hidden">Kết thúc giữa chừng</button>
+      </div>
+      <div id="countdown-start" class="text-2xl font-bold mb-4 hidden"></div>
+      <div id="results-stats" class="flex space-x-4 mb-4 hidden">
+        <div class="bg-blue-100 p-4 rounded-lg flex-1 text-center">
+          <h3 class="font-bold">Người cao nhất</h3>
+          <p id="top-score"></p>
+        </div>
+        <div class="bg-blue-100 p-4 rounded-lg flex-1 text-center">
+          <h3 class="font-bold">Người cao thứ hai</h3>
+          <p id="second-score"></p>
+        </div>
+        <div class="bg-blue-100 p-4 rounded-lg flex-1 text-center">
+          <h3 class="font-bold">Điểm trung bình</h3>
+          <p id="average-score"></p>
         </div>
       </div>
-      <button onclick="logout()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Đăng xuất</button>
+      <h3 class="text-lg font-semibold mb-2">Danh sách học sinh</h3>
+      <div id="participants-list" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+      <button onclick="backToQuizList()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại danh sách đề</button>
     </div>
 
     <div id="upload-quizzes" class="mb-6 hidden">
@@ -227,11 +246,9 @@
     </div>
 
     <div id="result-screen" class="hidden">
-      <h2 class="text-xl font-bold mb-4">Kết quả của bạn</h2>
+      <h2 class="text-xl font-bold mb-4">Chúc mừng bạn đã hoàn thành!</h2>
       <p id="result-score" class="text-lg"></p>
       <p id="result-time" class="text-lg"></p>
-      <p id="result-submitted" class="text-lg hidden"></p>
-      <button onclick="backToQuizList()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4">Quay lại danh sách đề</button>
       <button onclick="logout()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mt-4">Đăng xuất</button>
     </div>
 
@@ -244,13 +261,17 @@
     let timeLeft = 7200;
     let timerInterval = null;
     let isAdminControlled = false;
+    let currentRoomCode = null;
+    let participants = [];
     const welcomeScreen = document.getElementById("welcome-screen");
     const adminLogin = document.getElementById("admin-login");
     const studentLogin = document.getElementById("student-login");
     const studentNameForm = document.getElementById("student-name-form");
+    const roomCodeScreen = document.getElementById("room-code-screen");
+    const roomCodeForm = document.getElementById("room-code-form");
     const quizListScreen = document.getElementById("quiz-list-screen");
+    const roomScreen = document.getElementById("room-screen");
     const adminOptions = document.getElementById("admin-options");
-    const adminControls = document.getElementById("admin-controls");
     const uploadQuizzesSection = document.getElementById("upload-quizzes");
     const quizzesFileInput = document.getElementById("quizzes-file");
     const quizList = document.getElementById("quiz-list");
@@ -258,12 +279,17 @@
     const notification = document.getElementById("notification");
     const quizStatus = document.getElementById("quiz-status");
     const participantCount = document.getElementById("participant-count");
-    const submittedCount = document.getElementById("submitted-count");
+    const roomCodeDisplay = document.getElementById("room-code-display");
     const startBtn = document.getElementById("startBtn");
     const endBtn = document.getElementById("endBtn");
-    const reuseBtn = document.getElementById("reuseBtn");
-    const resultsTable = document.getElementById("results-table");
-    const resultsBody = document.getElementById("results-body");
+    const interruptBtn = document.getElementById("interruptBtn");
+    const timeLimitInput = document.getElementById("time-limit");
+    const countdownStart = document.getElementById("countdown-start");
+    const resultsStats = document.getElementById("results-stats");
+    const topScore = document.getElementById("top-score");
+    const secondScore = document.getElementById("second-score");
+    const averageScore = document.getElementById("average-score");
+    const participantsList = document.getElementById("participants-list");
     const imageDisplay = document.getElementById("image-display");
     const audio = document.getElementById("audio");
     const audioSource = document.getElementById("audio-source");
@@ -272,7 +298,6 @@
     const resultScreen = document.getElementById("result-screen");
     const resultScore = document.getElementById("result-score");
     const resultTime = document.getElementById("result-time");
-    const resultSubmitted = document.getElementById("result-submitted");
     const countdownToggle = document.getElementById("countdown-toggle");
     const countdownPanel = document.getElementById("countdown-panel");
 
@@ -282,17 +307,16 @@
     let currentQuizPart = 0;
     const partAnswerCounts = [6, 25, 39, 30, 30, 16, 54];
 
-    // Countdown logic for 6 days
+    // Countdown logic for 6 days (only for admin)
     let countdownInterval = null;
     let autoShowInterval = null;
-    const sixDaysInSeconds = 6 * 24 * 60 * 60; // 6 days in seconds
+    const sixDaysInSeconds = 6 * 24 * 60 * 60;
     let countdownTimeLeft = sixDaysInSeconds;
 
     function showCountdown() {
       countdownPanel.classList.remove("hidden");
       countdownPanel.classList.remove("translate-y-[-10px]");
       countdownPanel.classList.add("translate-y-0");
-      // Auto-hide after 5 seconds
       setTimeout(hideCountdown, 5000);
     }
 
@@ -301,18 +325,18 @@
       setTimeout(() => {
         countdownPanel.classList.add("hidden");
         countdownPanel.classList.remove("translate-y-0");
-      }, 300); // Match transition duration
+      }, 300);
     }
 
     function startCountdown() {
-      // Update countdown display every second
+      if (!isAdmin) return;
       countdownInterval = setInterval(() => {
         if (countdownTimeLeft <= 0) {
           clearInterval(countdownInterval);
           clearInterval(autoShowInterval);
           countdownPanel.innerText = "Hết thời gian dữ liệu có thể bị mất bất cứ lúc nào !";
-          showCountdown(); // Show permanently when time is up
-          countdownToggle.classList.add("hidden"); // Hide toggle button
+          showCountdown();
+          countdownToggle.classList.add("hidden");
           return;
         }
         const days = Math.floor(countdownTimeLeft / (24 * 60 * 60));
@@ -323,13 +347,11 @@
         countdownTimeLeft--;
       }, 1000);
 
-      // Auto-show countdown every 30 seconds for 5 seconds
       autoShowInterval = setInterval(() => {
-        if (!countdownPanel.classList.contains("hidden")) return; // Skip if already visible
+        if (!countdownPanel.classList.contains("hidden")) return;
         showCountdown();
       }, 30000);
 
-      // Toggle countdown on click
       countdownToggle.addEventListener("click", () => {
         if (countdownPanel.classList.contains("hidden")) {
           showCountdown();
@@ -338,17 +360,28 @@
         }
       });
 
-      // Initial show
       showCountdown();
     }
 
-    // Start countdown when the page loads
-    startCountdown();
+    function generateRoomCode() {
+      return Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
+    function updateParticipantsList() {
+      participantsList.innerHTML = "";
+      participants.forEach(participant => {
+        const div = document.createElement("div");
+        div.className = `p-4 rounded-lg text-center ${participant.submitted ? 'bg-green-200' : 'bg-gray-100'} border`;
+        div.innerText = participant.name;
+        participantsList.appendChild(div);
+      });
+    }
 
     function showAdminLogin() {
       welcomeScreen.classList.add("hidden");
       adminLogin.classList.remove("hidden");
       studentLogin.classList.add("hidden");
+      roomCodeScreen.classList.add("hidden");
       notification.innerText = "";
       countdownToggle.classList.add("hidden");
       countdownPanel.classList.add("hidden");
@@ -358,6 +391,7 @@
       welcomeScreen.classList.add("hidden");
       adminLogin.classList.add("hidden");
       studentLogin.classList.remove("hidden");
+      roomCodeScreen.classList.add("hidden");
       notification.innerText = "";
       countdownToggle.classList.add("hidden");
       countdownPanel.classList.add("hidden");
@@ -367,7 +401,9 @@
       welcomeScreen.classList.remove("hidden");
       adminLogin.classList.add("hidden");
       studentLogin.classList.add("hidden");
+      roomCodeScreen.classList.add("hidden");
       quizListScreen.classList.add("hidden");
+      roomScreen.classList.add("hidden");
       quizContainer.classList.add("hidden");
       resultScreen.classList.add("hidden");
       document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
@@ -375,12 +411,14 @@
       notification.innerText = "";
       user = null;
       isAdmin = false;
+      currentRoomCode = null;
+      participants = [];
       if (socket) {
         socket.close();
         socket = null;
       }
-      countdownToggle.classList.remove("hidden");
-      showCountdown(); // Show countdown on welcome screen
+      countdownToggle.classList.toggle("hidden", !isAdmin);
+      if (isAdmin) showCountdown();
     }
 
     function initializeWebSocket() {
@@ -388,6 +426,11 @@
         socket = new WebSocket(wsProtocol + location.host);
         socket.onopen = () => {
           console.log("WebSocket connected successfully.");
+          if (isAdmin && currentRoomCode) {
+            socket.send(JSON.stringify({ type: "createRoom", roomCode: currentRoomCode, quizId: currentQuizId }));
+          } else if (!isAdmin && currentRoomCode) {
+            socket.send(JSON.stringify({ type: "joinRoom", roomCode: currentRoomCode, username: user.name }));
+          }
         };
         socket.onmessage = handleWebSocketMessage;
         socket.onerror = (error) => {
@@ -419,11 +462,10 @@
         adminLogin.classList.add("hidden");
         quizListScreen.classList.remove("hidden");
         adminOptions.classList.remove("hidden");
-        adminControls.classList.remove("hidden");
         initializeWebSocket();
         await loadQuizzes();
-        countdownToggle.classList.add("hidden");
-        countdownPanel.classList.add("hidden");
+        countdownToggle.classList.remove("hidden");
+        startCountdown();
       } catch (error) {
         console.error("Error during Admin login:", error);
         notification.innerText = "Đăng nhập Admin thất bại. Vui lòng thử lại hoặc kiểm tra Client ID.";
@@ -442,11 +484,7 @@
         user = { name };
         isAdmin = false;
         studentLogin.classList.add("hidden");
-        quizListScreen.classList.remove("hidden");
-        adminOptions.classList.add("hidden");
-        adminControls.classList.add("hidden");
-        initializeWebSocket();
-        await loadQuizzes();
+        roomCodeScreen.classList.remove("hidden");
         countdownToggle.classList.add("hidden");
         countdownPanel.classList.add("hidden");
       } catch (error) {
@@ -456,15 +494,34 @@
       }
     };
 
+    roomCodeForm.onsubmit = async (e) => {
+      e.preventDefault();
+      try {
+        const roomCode = document.getElementById("room-code").value.trim();
+        if (!roomCode.match(/^\d{6}$/)) {
+          notification.innerText = "Mã phòng phải là 6 số!";
+          return;
+        }
+        currentRoomCode = roomCode;
+        initializeWebSocket();
+        roomCodeScreen.classList.add("hidden");
+        notification.innerText = "Đang chờ admin bắt đầu bài thi...";
+      } catch (error) {
+        console.error("Error joining room:", error);
+        notification.innerText = "Không thể vào phòng thi. Vui lòng kiểm tra mã phòng và thử lại.";
+      }
+    };
+
     function backToQuizList() {
       quizListScreen.classList.remove("hidden");
+      roomScreen.classList.add("hidden");
       uploadQuizzesSection.classList.add("hidden");
       document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
       quizContainer.classList.add("hidden");
       resultScreen.classList.add("hidden");
       notification.innerText = "";
-      countdownToggle.classList.add("hidden");
-      countdownPanel.classList.add("hidden");
+      countdownToggle.classList.toggle("hidden", !isAdmin);
+      if (isAdmin) showCountdown();
       loadQuizzes();
     }
 
@@ -551,8 +608,7 @@
             if (isAdmin) {
               div.innerHTML = `
                 <span>${quiz.quizName}</span>
-                <button onclick="selectQuiz('${quiz.quizId}')" class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">Chọn để kiểm soát</button>
-                <button onclick="startQuiz('${quiz.quizId}')" class="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">Bắt đầu làm bài</button>
+                <button onclick="createRoom('${quiz.quizId}')" class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">Tạo phòng thi</button>
                 <button onclick="downloadQuizzes('${quiz.quizId}')" class="bg-purple-500 text-white px-2 py-1 rounded hover:bg-purple-600">Tải xuống</button>
                 <button onclick="deleteQuiz('${quiz.quizId}')" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Xóa</button>
               `;
@@ -589,36 +645,31 @@
       }
     }
 
-    async function selectQuiz(quizId) {
+    let currentQuizId = null;
+    async function createRoom(quizId) {
       try {
+        currentQuizId = quizId;
+        currentRoomCode = generateRoomCode();
         const res = await fetch("/select-quiz", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ quizId }),
+          body: JSON.stringify({ quizId, roomCode: currentRoomCode }),
         });
         const result = await res.json();
         if (res.ok) {
-          const timeLimit = prompt("Nhập thời gian làm bài (phút, tối đa 120):", "120");
-          if (timeLimit === null) return;
-          let timeLimitSeconds = parseInt(timeLimit) * 60;
-          if (isNaN(timeLimitSeconds) || timeLimitSeconds <= 0 || timeLimitSeconds > 7200) {
-            notification.innerText = "Thời gian không hợp lệ! Sử dụng mặc định 120 phút.";
-            timeLimitSeconds = 7200;
-          }
-          startBtn.classList.remove("hidden");
-          startBtn.onclick = () => {
-            if (socket && socket.readyState === WebSocket.OPEN) {
-              socket.send(JSON.stringify({ type: "start", timeLimit: timeLimitSeconds }));
-            } else {
-              notification.innerText = "Không thể gửi tín hiệu bắt đầu. Kết nối WebSocket không hoạt động.";
-            }
-          };
+          quizListScreen.classList.add("hidden");
+          roomScreen.classList.remove("hidden");
+          roomCodeDisplay.innerText = `Mã phòng: ${currentRoomCode}`;
+          participantCount.innerText = "Số người tham gia: 0";
+          countdownToggle.classList.add("hidden");
+          countdownPanel.classList.add("hidden");
+          initializeWebSocket();
         } else {
           notification.innerText = result.message;
         }
       } catch (error) {
-        console.error("Error selecting quiz:", error);
-        notification.innerText = "Lỗi khi chọn đề thi. Vui lòng thử lại.";
+        console.error("Error creating room:", error);
+        notification.innerText = "Lỗi khi tạo phòng thi. Vui lòng thử lại.";
       }
     }
 
@@ -627,13 +678,13 @@
         const res = await fetch("/select-quiz", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ quizId }),
+          body: JSON.stringify({ quizId, roomCode: currentRoomCode }),
         });
         const result = await res.json();
         if (res.ok) {
-          isAdminControlled = false;
-          timeLeft = 7200;
-          quizListScreen.classList.add("hidden");
+          isAdminControlled = true;
+          timeLeft = parseInt(timeLimitInput.value) * 60 || 7200;
+          roomCodeScreen.classList.add("hidden");
           quizContainer.classList.remove("hidden");
           timerDisplay.classList.remove("hidden");
           audio.classList.remove("hidden");
@@ -884,52 +935,68 @@
     function handleWebSocketMessage(event) {
       try {
         const msg = JSON.parse(event.data);
-        if (msg.type === "start") {
-          if (!isAdmin) {
-            isAdminControlled = true;
-            timeLeft = msg.timeLimit || 7200;
-            quizListScreen.classList.add("hidden");
-            quizContainer.classList.remove("hidden");
-            timerDisplay.classList.remove("hidden");
-            audio.classList.remove("hidden");
-            loadAudio(1);
-            loadImages(1);
-            startTimer();
-            countdownToggle.classList.add("hidden");
-            countdownPanel.classList.add("hidden");
-          } else {
-            startBtn.classList.add("hidden");
-            endBtn.classList.remove("hidden");
-            reuseBtn.classList.add("hidden");
-            resultsTable.classList.add("hidden");
+        if (msg.type === "joinRoom") {
+          if (isAdmin) {
+            participants = msg.participants.map(name => ({ name, submitted: false }));
+            participantCount.innerText = `Số người tham gia: ${participants.length}`;
+            updateParticipantsList();
           }
         }
-        if (msg.type === "end") {
+        if (msg.type === "startCountdown") {
+          if (!isAdmin) {
+            countdownStart.classList.remove("hidden");
+            let countdown = 3;
+            countdownStart.innerText = `Bắt đầu trong ${countdown}...`;
+            const interval = setInterval(() => {
+              countdown--;
+              if (countdown <= 0) {
+                clearInterval(interval);
+                countdownStart.classList.add("hidden");
+                startQuiz(currentQuizId);
+              } else {
+                countdownStart.innerText = `Bắt đầu trong ${countdown}...`;
+              }
+            }, 1000);
+          }
+        }
+        if (msg.type === "start") {
+          if (isAdmin) {
+            startBtn.classList.add("hidden");
+            endBtn.classList.remove("hidden");
+            interruptBtn.classList.remove("hidden");
+          }
+        }
+        if (msg.type === "end" || msg.type === "interrupt") {
           if (!isAdmin) {
             submitQuiz();
           } else {
             endBtn.classList.add("hidden");
-            reuseBtn.classList.remove("hidden");
-            resultsTable.classList.remove("hidden");
+            interruptBtn.classList.add("hidden");
             fetchResults();
           }
         }
         if (msg.type === "submitted") {
-          const who = msg.username === user.name ? "Bạn" : msg.username;
-          notification.innerText = `${who} đã nộp bài.`;
-        }
-        if (msg.type === "participantCount") {
-          if (isAdmin) participantCount.innerText = `Số người tham gia: ${msg.count}`;
-        }
-        if (msg.type === "submittedCount") {
-          if (isAdmin) submittedCount.innerText = `Số người đã nộp: ${msg.count}`;
-          resultSubmitted.innerText = `Số người đã nộp: ${msg.count}`;
-          resultSubmitted.classList.remove("hidden");
-        }
-        if (msg.type === "quizStatus") {
-          quizStatus.innerText = msg.quizExists ? "Đang có bài thi được chọn." : "";
           if (isAdmin) {
-            startBtn.classList.toggle("hidden", !msg.quizExists);
+            const participant = participants.find(p => p.name === msg.username);
+            if (participant) {
+              participant.submitted = true;
+              updateParticipantsList();
+            }
+            notification.innerText = `${msg.username} đã nộp bài.`;
+          }
+        }
+        if (msg.type === "results") {
+          if (isAdmin) {
+            resultsStats.classList.remove("hidden");
+            topScore.innerText = msg.top ? `${msg.top.username}: ${msg.top.score}/200` : "Chưa có";
+            secondScore.innerText = msg.second ? `${msg.second.username}: ${msg.second.score}/200` : "Chưa có";
+            averageScore.innerText = msg.average ? `${msg.average.toFixed(2)}/200` : "Chưa có";
+            participants = msg.results.map(result => ({
+              name: result.username,
+              submitted: true,
+              score: result.score
+            }));
+            updateParticipantsList();
           }
         }
       } catch (error) {
@@ -938,27 +1005,51 @@
       }
     }
 
+    if (startBtn) {
+      startBtn.onclick = () => {
+        const timeLimit = parseInt(timeLimitInput.value) * 60;
+        if (isNaN(timeLimit) || timeLimit <= 0 || timeLimit > 7200) {
+          notification.innerText = "Thời gian không hợp lệ! Sử dụng mặc định 120 phút.";
+          timeLimitInput.value = 120;
+          return;
+        }
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: "startCountdown", timeLimit }));
+          countdownStart.classList.remove("hidden");
+          let countdown = 3;
+          countdownStart.innerText = `Bắt đầu trong ${countdown}...`;
+          const interval = setInterval(() => {
+            countdown--;
+            if (countdown <= 0) {
+              clearInterval(interval);
+              countdownStart.classList.add("hidden");
+              socket.send(JSON.stringify({ type: "start", timeLimit }));
+            } else {
+              countdownStart.innerText = `Bắt đầu trong ${countdown}...`;
+            }
+          }, 1000);
+        } else {
+          notification.innerText = "Không thể bắt đầu. Kết nối WebSocket không hoạt động.";
+        }
+      };
+    }
+
     if (endBtn) {
       endBtn.onclick = () => {
         if (socket && socket.readyState === WebSocket.OPEN) {
           socket.send(JSON.stringify({ type: "end" }));
         } else {
-          notification.innerText = "Không thể gửi tín hiệu kết thúc. Kết nối WebSocket không hoạt động.";
+          notification.innerText = "Không thể kết thúc. Kết nối WebSocket không hoạt động.";
         }
       };
     }
-    if (reuseBtn) {
-      reuseBtn.onclick = async () => {
-        try {
-          const res = await fetch("/reset", { method: "POST" });
-          const result = await res.json();
-          notification.innerText = result.message;
-          startBtn.classList.remove("hidden");
-          reuseBtn.classList.add("hidden");
-          resultsTable.classList.add("hidden");
-        } catch (error) {
-          console.error("Error resetting quiz:", error);
-          notification.innerText = "Lỗi khi đặt lại bài thi. Vui lòng thử lại.";
+
+    if (interruptBtn) {
+      interruptBtn.onclick = () => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: "interrupt" }));
+        } else {
+          notification.innerText = "Không thể kết thúc giữa chừng. Kết nối WebSocket không hoạt động.";
         }
       };
     }
@@ -967,16 +1058,19 @@
       try {
         const res = await fetch("/results");
         const results = await res.json();
-        resultsBody.innerHTML = "";
-        results.forEach(result => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td class="border p-2">${result.username}</td>
-            <td class="border p-2">${result.score}/200</td>
-            <td class="border p-2">${new Date(result.timestamp).toLocaleString()}</td>
-          `;
-          resultsBody.appendChild(tr);
-        });
+        if (isAdmin) {
+          const sortedResults = results.sort((a, b) => b.score - a.score);
+          const top = sortedResults[0];
+          const second = sortedResults[1];
+          const average = results.length > 0 ? results.reduce((sum, r) => sum + r.score, 0) / results.length : 0;
+          socket.send(JSON.stringify({
+            type: "results",
+            results,
+            top,
+            second,
+            average
+          }));
+        }
       } catch (error) {
         console.error("Error fetching results:", error);
         notification.innerText = "Lỗi khi tải kết quả. Vui lòng thử lại.";
@@ -992,7 +1086,7 @@
         const res = await fetch("/submit", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: user.name, answers }),
+          body: JSON.stringify({ username: user.name, answers, roomCode: currentRoomCode }),
         });
         const result = await res.json();
         if (res.ok) {
@@ -1007,8 +1101,8 @@
           if (isAdminControlled && socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ type: "submitted", username: user.name }));
           }
-          countdownToggle.classList.remove("hidden");
-          showCountdown(); // Show countdown after submitting
+          countdownToggle.classList.add("hidden");
+          countdownPanel.classList.add("hidden");
         } else {
           notification.innerText = result.message || "Lỗi khi nộp bài!";
         }
