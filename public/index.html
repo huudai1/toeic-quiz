@@ -257,6 +257,7 @@
     let isAdminControlled = false;
     let currentRoomCode = null;
     let participants = [];
+    let currentQuizId = null;
     const welcomeScreen = document.getElementById("welcome-screen");
     const adminLogin = document.getElementById("admin-login");
     const studentLogin = document.getElementById("student-login");
@@ -290,7 +291,7 @@
     const timerDisplay = document.getElementById("timer");
     const quizForm = document.getElementById("quizForm");
     const resultScreen = document.getElementById("result-screen");
-    const resultScore = document.getElementById("result-score");
+    const resultScore = document.getElementById("result brow-score");
     const resultTime = document.getElementById("result-time");
 
     const wsProtocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
@@ -304,6 +305,7 @@
     }
 
     function updateParticipantsList() {
+      console.log("Updating participants list:", participants);
       participantsList.innerHTML = "";
       participants.forEach(participant => {
         const div = document.createElement("div");
@@ -311,6 +313,7 @@
         div.innerText = participant.score !== undefined ? `${participant.name}: ${participant.score}/200` : participant.name;
         participantsList.appendChild(div);
       });
+      participantCount.innerText = `Số người tham gia: ${participants.length}`;
     }
 
     function showAdminLogin() {
@@ -353,19 +356,22 @@
 
     function initializeWebSocket() {
       try {
+        console.log("Initializing WebSocket with protocol:", wsProtocol);
         socket = new WebSocket(wsProtocol + location.host);
         socket.onopen = () => {
           console.log("WebSocket connected successfully.");
           if (isAdmin && currentRoomCode) {
+            console.log("Admin creating room:", currentRoomCode, currentQuizId);
             socket.send(JSON.stringify({ type: "createRoom", roomCode: currentRoomCode, quizId: currentQuizId }));
           } else if (!isAdmin && currentRoomCode) {
+            console.log("Student joining room:", currentRoomCode, user.name);
             socket.send(JSON.stringify({ type: "joinRoom", roomCode: currentRoomCode, username: user.name }));
           }
         };
         socket.onmessage = handleWebSocketMessage;
         socket.onerror = (error) => {
           console.error("WebSocket error:", error);
-          notification.innerText = "Không thể kết nối WebSocket. Một số tính năng có thể không hoạt động.";
+          notification.innerText = "Không thể kết nối WebSocket. Vui lòng kiểm tra kết nối và thử lại.";
         };
         socket.onclose = () => {
           console.log("WebSocket closed. Attempting to reconnect...");
@@ -565,7 +571,6 @@
       }
     }
 
-    let currentQuizId = null;
     async function createRoom(quizId) {
       try {
         currentQuizId = quizId;
@@ -594,6 +599,7 @@
     }
 
     async function startQuiz(quizId) {
+      console.log("Starting quiz with ID:", quizId);
       try {
         const res = await fetch("/select-quiz", {
           method: "POST",
@@ -604,6 +610,7 @@
         if (res.ok) {
           isAdminControlled = true;
           timeLeft = parseInt(timeLimitInput.value) * 60 || 7200;
+          console.log("Quiz started, time left:", timeLeft);
           roomCodeScreen.classList.add("hidden");
           quizContainer.classList.remove("hidden");
           timerDisplay.classList.remove("hidden");
@@ -613,7 +620,8 @@
           await loadImages(1);
           startTimer();
         } else {
-          notification.innerText = result.message;
+          console.error("Failed to start quiz:", result.message);
+          notification.innerText = result.message || "Lỗi khi bắt đầu bài thi.";
         }
       } catch (error) {
         console.error("Error starting quiz:", error);
@@ -627,12 +635,15 @@
         return;
       }
       try {
+        console.log("Loading audio for part:", part);
         const audioRes = await fetch(`/quiz-audio?part=part${part}`);
         const data = await audioRes.json();
         if (data.audio) {
           audioSource.src = data.audio;
           audio.load();
+          console.log("Audio loaded successfully for part:", part);
         } else {
+          console.warn(`No audio found for Part ${part}`);
           notification.innerText = `Không tìm thấy file nghe cho Part ${part}!`;
         }
       } catch (audioError) {
@@ -675,6 +686,7 @@
     });
 
     function startTimer() {
+      console.log("Starting timer with timeLeft:", timeLeft);
       timerInterval = setInterval(() => {
         if (timeLeft <= 0) {
           clearInterval(timerInterval);
@@ -690,6 +702,7 @@
 
     async function loadImages(part) {
       try {
+        console.log("Loading images for part:", part);
         const res = await fetch(`/images?part=${part}`);
         const images = await res.json();
         imageDisplay.innerHTML = `<h3 class="text-lg font-semibold mb-2">Part ${part}</h3>`;
@@ -699,6 +712,7 @@
           img.className = "w-full max-w-xs mb-4 rounded";
           imageDisplay.appendChild(img);
         });
+        console.log("Images loaded successfully for part:", part);
       } catch (error) {
         console.error("Error loading images:", error);
         notification.innerText = `Lỗi khi tải ảnh cho Part ${part}.`;
@@ -853,15 +867,17 @@
 
     function handleWebSocketMessage(event) {
       try {
+        console.log("Received WebSocket message:", event.data);
         const msg = JSON.parse(event.data);
         if (msg.type === "joinRoom") {
           if (isAdmin) {
-            participants = msg.participants.map(name => ({ name, submitted: false, score: undefined }));
-            participantCount.innerText = `Số người tham gia: ${participants.length}`;
+            participants = msg.participants ? msg.participants.map(name => ({ name, submitted: false, score: undefined })) : [];
+            console.log("Participants updated:", participants);
             updateParticipantsList();
           }
         }
         if (msg.type === "startCountdown") {
+          console.log("Starting countdown for quiz:", msg.quizId);
           countdownStart.classList.remove("hidden");
           let countdown = 3;
           countdownStart.innerText = `Bắt đầu trong ${countdown}...`;
@@ -871,8 +887,10 @@
               clearInterval(interval);
               countdownStart.classList.add("hidden");
               if (!isAdmin) {
-                startQuiz(currentQuizId);
+                console.log("Student starting quiz:", msg.quizId);
+                startQuiz(msg.quizId);
               } else {
+                console.log("Admin updating interface");
                 startBtn.classList.add("hidden");
                 endBtn.classList.remove("hidden");
                 interruptBtn.classList.remove("hidden");
@@ -884,8 +902,10 @@
         }
         if (msg.type === "end" || msg.type === "interrupt") {
           if (!isAdmin) {
+            console.log("Quiz ended or interrupted, submitting...");
             submitQuiz();
           } else {
+            console.log("Admin ending quiz, fetching results...");
             endBtn.classList.add("hidden");
             interruptBtn.classList.add("hidden");
             fetchResults();
@@ -899,6 +919,7 @@
               updateParticipantsList();
             }
             notification.innerText = `${msg.username} đã nộp bài.`;
+            console.log("Participant submitted:", msg.username);
           }
         }
         if (msg.type === "results") {
@@ -913,6 +934,7 @@
               score: result.score
             }));
             updateParticipantsList();
+            console.log("Results received:", msg.results);
           }
         }
       } catch (error) {
@@ -923,25 +945,31 @@
 
     if (startBtn) {
       startBtn.onclick = () => {
+        console.log("Start button clicked, currentQuizId:", currentQuizId);
         const timeLimit = parseInt(timeLimitInput.value) * 60;
         if (isNaN(timeLimit) || timeLimit <= 0 || timeLimit > 7200) {
           notification.innerText = "Thời gian không hợp lệ! Sử dụng mặc định 120 phút.";
           timeLimitInput.value = 120;
           return;
         }
-        if (socket && socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify({ type: "startCountdown", timeLimit, quizId: currentQuizId }));
-        } else {
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+          console.error("WebSocket not connected, readyState:", socket ? socket.readyState : "null");
           notification.innerText = "Không thể bắt đầu. Kết nối WebSocket không hoạt động.";
+          initializeWebSocket();
+          return;
         }
+        console.log("Sending startCountdown message:", { timeLimit, quizId: currentQuizId });
+        socket.send(JSON.stringify({ type: "startCountdown", timeLimit, quizId: currentQuizId }));
       };
     }
 
     if (endBtn) {
       endBtn.onclick = () => {
         if (socket && socket.readyState === WebSocket.OPEN) {
+          console.log("Sending end message");
           socket.send(JSON.stringify({ type: "end" }));
         } else {
+          console.error("WebSocket not connected for end");
           notification.innerText = "Không thể kết thúc. Kết nối WebSocket không hoạt động.";
         }
       };
@@ -950,8 +978,10 @@
     if (interruptBtn) {
       interruptBtn.onclick = () => {
         if (socket && socket.readyState === WebSocket.OPEN) {
+          console.log("Sending interrupt message");
           socket.send(JSON.stringify({ type: "interrupt" }));
         } else {
+          console.error("WebSocket not connected for interrupt");
           notification.innerText = "Không thể kết thúc giữa chừng. Kết nối WebSocket không hoạt động.";
         }
       };
@@ -959,6 +989,7 @@
 
     async function fetchResults() {
       try {
+        console.log("Fetching results for room:", currentRoomCode);
         const res = await fetch(`/results?roomCode=${currentRoomCode}`);
         const results = await res.json();
         if (isAdmin) {
@@ -966,13 +997,16 @@
           const top = sortedResults[0];
           const second = sortedResults[1];
           const average = results.length > 0 ? results.reduce((sum, r) => sum + r.score, 0) / results.length : 0;
-          socket.send(JSON.stringify({
-            type: "results",
-            results,
-            top,
-            second,
-            average
-          }));
+          if (socket && socket.readyState === WebSocket.OPEN) {
+            console.log("Sending results:", { results, top, second, average });
+            socket.send(JSON.stringify({
+              type: "results",
+              results,
+              top,
+              second,
+              average
+            }));
+          }
         }
       } catch (error) {
         console.error("Error fetching results:", error);
@@ -981,6 +1015,7 @@
     }
 
     async function submitQuiz() {
+      console.log("Submitting quiz for user:", user.name);
       const formData = new FormData(quizForm);
       const answers = {};
       formData.forEach((val, key) => answers[key] = val);
@@ -1003,9 +1038,11 @@
           clearInterval(timerInterval);
           notification.innerText = "";
           if (isAdminControlled && socket && socket.readyState === WebSocket.OPEN) {
+            console.log("Notifying submission:", user.name);
             socket.send(JSON.stringify({ type: "submitted", username: user.name }));
           }
         } else {
+          console.error("Submission failed:", result.message);
           notification.innerText = result.message || "Lỗi khi nộp bài!";
         }
       } catch (error) {
