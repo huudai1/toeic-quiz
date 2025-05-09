@@ -13,6 +13,13 @@
     Your browser does not support the audio element.
   </audio>
   <div id="timer" class="fixed top-4 left-4 text-lg font-bold hidden"></div>
+  <!-- Nút mũi tên và khung bộ đếm ngược -->
+  <div id="countdown-toggle" class="fixed top-4 right-16 z-50 cursor-pointer">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+    </svg>
+  </div>
+  <div id="countdown-panel" class="fixed top-10 right-4 z-50 bg-white p-4 rounded-lg shadow-lg text-lg font-bold hidden transition-all duration-300 transform translate-y-[-10px]" style="white-space: pre-line;"></div>
   <div class="max-w-7xl mx-auto bg-white rounded-lg shadow-lg p-6">
     <h1 class="text-3xl font-bold text-center mb-6">TOEIC Quiz</h1>
 
@@ -198,7 +205,7 @@
             <button type="button" onclick="nextQuizPart(4)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4">Tiếp theo</button>
           </div>
           <div id="quiz-part5" class="quiz-part hidden">
-            <h2 class="text-xl font226-bold">Part 5 (30 câu)</h2>
+            <h2 class="text-xl font-bold">Part 5 (30 câu)</h2>
             <div id="section5" class="space-y-4"></div>
             <button type="button" onclick="prevQuizPart(4)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mt-4">Quay lại</button>
             <button type="button" onclick="nextQuizPart(5)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4">Tiếp theo</button>
@@ -266,6 +273,8 @@
     const resultScore = document.getElementById("result-score");
     const resultTime = document.getElementById("result-time");
     const resultSubmitted = document.getElementById("result-submitted");
+    const countdownToggle = document.getElementById("countdown-toggle");
+    const countdownPanel = document.getElementById("countdown-panel");
 
     const wsProtocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
     let socket = null;
@@ -273,11 +282,76 @@
     let currentQuizPart = 0;
     const partAnswerCounts = [6, 25, 39, 30, 30, 16, 54];
 
+    // Countdown logic for 6 days
+    let countdownInterval = null;
+    let autoShowInterval = null;
+    const sixDaysInSeconds = 6 * 24 * 60 * 60; // 6 days in seconds
+    let countdownTimeLeft = sixDaysInSeconds;
+
+    function showCountdown() {
+      countdownPanel.classList.remove("hidden");
+      countdownPanel.classList.remove("translate-y-[-10px]");
+      countdownPanel.classList.add("translate-y-0");
+      // Auto-hide after 5 seconds
+      setTimeout(hideCountdown, 5000);
+    }
+
+    function hideCountdown() {
+      countdownPanel.classList.add("translate-y-[-10px]");
+      setTimeout(() => {
+        countdownPanel.classList.add("hidden");
+        countdownPanel.classList.remove("translate-y-0");
+      }, 300); // Match transition duration
+    }
+
+    function startCountdown() {
+      // Update countdown display every second
+      countdownInterval = setInterval(() => {
+        if (countdownTimeLeft <= 0) {
+          clearInterval(countdownInterval);
+          clearInterval(autoShowInterval);
+          countdownPanel.innerText = "Hết thời gian dữ liệu có thể bị mất bất cứ lúc nào !";
+          showCountdown(); // Show permanently when time is up
+          countdownToggle.classList.add("hidden"); // Hide toggle button
+          return;
+        }
+        const days = Math.floor(countdownTimeLeft / (24 * 60 * 60));
+        const hours = Math.floor((countdownTimeLeft % (24 * 60 * 60)) / (60 * 60));
+        const minutes = Math.floor((countdownTimeLeft % (60 * 60)) / 60);
+        const seconds = countdownTimeLeft % 60;
+        countdownPanel.innerText = `Thời gian còn lại: ${days} ngày ${hours}:${minutes < 10 ? "0" : ""}${minutes}:${seconds < 10 ? "0" : ""}${seconds}\nHãy nhớ tải đề về trước khi tắt !!!`;
+        countdownTimeLeft--;
+      }, 1000);
+
+      // Auto-show countdown every 30 seconds for 5 seconds
+      autoShowInterval = setInterval(() => {
+        if (!countdownPanel.classList.contains("hidden")) return; // Skip if already visible
+        showCountdown();
+      }, 30000);
+
+      // Toggle countdown on click
+      countdownToggle.addEventListener("click", () => {
+        if (countdownPanel.classList.contains("hidden")) {
+          showCountdown();
+        } else {
+          hideCountdown();
+        }
+      });
+
+      // Initial show
+      showCountdown();
+    }
+
+    // Start countdown when the page loads
+    startCountdown();
+
     function showAdminLogin() {
       welcomeScreen.classList.add("hidden");
       adminLogin.classList.remove("hidden");
       studentLogin.classList.add("hidden");
       notification.innerText = "";
+      countdownToggle.classList.add("hidden");
+      countdownPanel.classList.add("hidden");
     }
 
     function showStudentLogin() {
@@ -285,6 +359,8 @@
       adminLogin.classList.add("hidden");
       studentLogin.classList.remove("hidden");
       notification.innerText = "";
+      countdownToggle.classList.add("hidden");
+      countdownPanel.classList.add("hidden");
     }
 
     function showWelcomeScreen() {
@@ -303,6 +379,8 @@
         socket.close();
         socket = null;
       }
+      countdownToggle.classList.remove("hidden");
+      showCountdown(); // Show countdown on welcome screen
     }
 
     function initializeWebSocket() {
@@ -344,6 +422,8 @@
         adminControls.classList.remove("hidden");
         initializeWebSocket();
         await loadQuizzes();
+        countdownToggle.classList.add("hidden");
+        countdownPanel.classList.add("hidden");
       } catch (error) {
         console.error("Error during Admin login:", error);
         notification.innerText = "Đăng nhập Admin thất bại. Vui lòng thử lại hoặc kiểm tra Client ID.";
@@ -367,6 +447,8 @@
         adminControls.classList.add("hidden");
         initializeWebSocket();
         await loadQuizzes();
+        countdownToggle.classList.add("hidden");
+        countdownPanel.classList.add("hidden");
       } catch (error) {
         console.error("Error during Student login:", error);
         notification.innerText = "Đăng nhập học sinh thất bại. Vui lòng thử lại.";
@@ -381,17 +463,23 @@
       quizContainer.classList.add("hidden");
       resultScreen.classList.add("hidden");
       notification.innerText = "";
+      countdownToggle.classList.add("hidden");
+      countdownPanel.classList.add("hidden");
       loadQuizzes();
     }
 
     function createNewQuiz() {
       quizListScreen.classList.add("hidden");
       document.getElementById("admin-step-audio").classList.remove("hidden");
+      countdownToggle.classList.add("hidden");
+      countdownPanel.classList.add("hidden");
     }
 
     function showUploadQuizzes() {
       quizListScreen.classList.add("hidden");
       uploadQuizzesSection.classList.remove("hidden");
+      countdownToggle.classList.add("hidden");
+      countdownPanel.classList.add("hidden");
     }
 
     async function uploadQuizzes() {
@@ -552,6 +640,8 @@
           await loadAudio(1);
           await loadImages(1);
           startTimer();
+          countdownToggle.classList.add("hidden");
+          countdownPanel.classList.add("hidden");
         } else {
           notification.innerText = result.message;
         }
@@ -805,6 +895,8 @@
             loadAudio(1);
             loadImages(1);
             startTimer();
+            countdownToggle.classList.add("hidden");
+            countdownPanel.classList.add("hidden");
           } else {
             startBtn.classList.add("hidden");
             endBtn.classList.remove("hidden");
@@ -915,6 +1007,8 @@
           if (isAdminControlled && socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ type: "submitted", username: user.name }));
           }
+          countdownToggle.classList.remove("hidden");
+          showCountdown(); // Show countdown after submitting
         } else {
           notification.innerText = result.message || "Lỗi khi nộp bài!";
         }
