@@ -13,13 +13,6 @@
     Your browser does not support the audio element.
   </audio>
   <div id="timer" class="fixed top-4 left-4 text-lg font-bold hidden"></div>
-  <!-- Nút mũi tên và khung bộ đếm ngược (chỉ cho admin) -->
-  <div id="countdown-toggle" class="fixed top-4 right-16 z-50 cursor-pointer hidden">
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-    </svg>
-  </div>
-  <div id="countdown-panel" class="fixed top-10 right-4 z-50 bg-white p-4 rounded-lg shadow-lg text-lg font-bold hidden transition-all duration-300 transform translate-y-[-10px]" style="white-space: pre-line;"></div>
   <div class="max-w-7xl mx-auto bg-white rounded-lg shadow-lg p-6">
     <h1 class="text-3xl font-bold text-center mb-6">TOEIC Quiz</h1>
 
@@ -61,6 +54,7 @@
 
     <div id="quiz-list-screen" class="mb-6 hidden">
       <h2 class="text-xl font-bold mb-4">Danh sách đề thi</h2>
+      <p class="text-lg text-red-500 mb-4">Hãy nhớ tải đề về trước khi tắt!</p>
       <div id="quiz-status" class="text-lg font-semibold mb-4"></div>
       <div id="quiz-list" class="space-y-2"></div>
       <div id="admin-options" class="mt-4 hidden">
@@ -298,70 +292,12 @@
     const resultScreen = document.getElementById("result-screen");
     const resultScore = document.getElementById("result-score");
     const resultTime = document.getElementById("result-time");
-    const countdownToggle = document.getElementById("countdown-toggle");
-    const countdownPanel = document.getElementById("countdown-panel");
 
     const wsProtocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
     let socket = null;
     let currentAdminStep = 0;
     let currentQuizPart = 0;
     const partAnswerCounts = [6, 25, 39, 30, 30, 16, 54];
-
-    // Countdown logic for 6 days (only for admin)
-    let countdownInterval = null;
-    let autoShowInterval = null;
-    const sixDaysInSeconds = 6 * 24 * 60 * 60;
-    let countdownTimeLeft = sixDaysInSeconds;
-
-    function showCountdown() {
-      countdownPanel.classList.remove("hidden");
-      countdownPanel.classList.remove("translate-y-[-10px]");
-      countdownPanel.classList.add("translate-y-0");
-      setTimeout(hideCountdown, 5000);
-    }
-
-    function hideCountdown() {
-      countdownPanel.classList.add("translate-y-[-10px]");
-      setTimeout(() => {
-        countdownPanel.classList.add("hidden");
-        countdownPanel.classList.remove("translate-y-0");
-      }, 300);
-    }
-
-    function startCountdown() {
-      if (!isAdmin) return;
-      countdownInterval = setInterval(() => {
-        if (countdownTimeLeft <= 0) {
-          clearInterval(countdownInterval);
-          clearInterval(autoShowInterval);
-          countdownPanel.innerText = "Hết thời gian dữ liệu có thể bị mất bất cứ lúc nào !";
-          showCountdown();
-          countdownToggle.classList.add("hidden");
-          return;
-        }
-        const days = Math.floor(countdownTimeLeft / (24 * 60 * 60));
-        const hours = Math.floor((countdownTimeLeft % (24 * 60 * 60)) / (60 * 60));
-        const minutes = Math.floor((countdownTimeLeft % (60 * 60)) / 60);
-        const seconds = countdownTimeLeft % 60;
-        countdownPanel.innerText = `Thời gian còn lại: ${days} ngày ${hours}:${minutes < 10 ? "0" : ""}${minutes}:${seconds < 10 ? "0" : ""}${seconds}\nHãy nhớ tải đề về trước khi tắt !!!`;
-        countdownTimeLeft--;
-      }, 1000);
-
-      autoShowInterval = setInterval(() => {
-        if (!countdownPanel.classList.contains("hidden")) return;
-        showCountdown();
-      }, 30000);
-
-      countdownToggle.addEventListener("click", () => {
-        if (countdownPanel.classList.contains("hidden")) {
-          showCountdown();
-        } else {
-          hideCountdown();
-        }
-      });
-
-      showCountdown();
-    }
 
     function generateRoomCode() {
       return Math.floor(100000 + Math.random() * 900000).toString();
@@ -372,7 +308,7 @@
       participants.forEach(participant => {
         const div = document.createElement("div");
         div.className = `p-4 rounded-lg text-center ${participant.submitted ? 'bg-green-200' : 'bg-gray-100'} border`;
-        div.innerText = participant.name;
+        div.innerText = participant.score !== undefined ? `${participant.name}: ${participant.score}/200` : participant.name;
         participantsList.appendChild(div);
       });
     }
@@ -383,8 +319,6 @@
       studentLogin.classList.add("hidden");
       roomCodeScreen.classList.add("hidden");
       notification.innerText = "";
-      countdownToggle.classList.add("hidden");
-      countdownPanel.classList.add("hidden");
     }
 
     function showStudentLogin() {
@@ -393,8 +327,6 @@
       studentLogin.classList.remove("hidden");
       roomCodeScreen.classList.add("hidden");
       notification.innerText = "";
-      countdownToggle.classList.add("hidden");
-      countdownPanel.classList.add("hidden");
     }
 
     function showWelcomeScreen() {
@@ -417,8 +349,6 @@
         socket.close();
         socket = null;
       }
-      countdownToggle.classList.toggle("hidden", !isAdmin);
-      if (isAdmin) showCountdown();
     }
 
     function initializeWebSocket() {
@@ -464,8 +394,6 @@
         adminOptions.classList.remove("hidden");
         initializeWebSocket();
         await loadQuizzes();
-        countdownToggle.classList.remove("hidden");
-        startCountdown();
       } catch (error) {
         console.error("Error during Admin login:", error);
         notification.innerText = "Đăng nhập Admin thất bại. Vui lòng thử lại hoặc kiểm tra Client ID.";
@@ -485,8 +413,6 @@
         isAdmin = false;
         studentLogin.classList.add("hidden");
         roomCodeScreen.classList.remove("hidden");
-        countdownToggle.classList.add("hidden");
-        countdownPanel.classList.add("hidden");
       } catch (error) {
         console.error("Error during Student login:", error);
         notification.innerText = "Đăng nhập học sinh thất bại. Vui lòng thử lại.";
@@ -520,23 +446,17 @@
       quizContainer.classList.add("hidden");
       resultScreen.classList.add("hidden");
       notification.innerText = "";
-      countdownToggle.classList.toggle("hidden", !isAdmin);
-      if (isAdmin) showCountdown();
       loadQuizzes();
     }
 
     function createNewQuiz() {
       quizListScreen.classList.add("hidden");
       document.getElementById("admin-step-audio").classList.remove("hidden");
-      countdownToggle.classList.add("hidden");
-      countdownPanel.classList.add("hidden");
     }
 
     function showUploadQuizzes() {
       quizListScreen.classList.add("hidden");
       uploadQuizzesSection.classList.remove("hidden");
-      countdownToggle.classList.add("hidden");
-      countdownPanel.classList.add("hidden");
     }
 
     async function uploadQuizzes() {
@@ -661,8 +581,8 @@
           roomScreen.classList.remove("hidden");
           roomCodeDisplay.innerText = `Mã phòng: ${currentRoomCode}`;
           participantCount.innerText = "Số người tham gia: 0";
-          countdownToggle.classList.add("hidden");
-          countdownPanel.classList.add("hidden");
+          participants = [];
+          updateParticipantsList();
           initializeWebSocket();
         } else {
           notification.innerText = result.message;
@@ -688,11 +608,10 @@
           quizContainer.classList.remove("hidden");
           timerDisplay.classList.remove("hidden");
           audio.classList.remove("hidden");
+          notification.innerText = "";
           await loadAudio(1);
           await loadImages(1);
           startTimer();
-          countdownToggle.classList.add("hidden");
-          countdownPanel.classList.add("hidden");
         } else {
           notification.innerText = result.message;
         }
@@ -937,34 +856,31 @@
         const msg = JSON.parse(event.data);
         if (msg.type === "joinRoom") {
           if (isAdmin) {
-            participants = msg.participants.map(name => ({ name, submitted: false }));
+            participants = msg.participants.map(name => ({ name, submitted: false, score: undefined }));
             participantCount.innerText = `Số người tham gia: ${participants.length}`;
             updateParticipantsList();
           }
         }
         if (msg.type === "startCountdown") {
-          if (!isAdmin) {
-            countdownStart.classList.remove("hidden");
-            let countdown = 3;
-            countdownStart.innerText = `Bắt đầu trong ${countdown}...`;
-            const interval = setInterval(() => {
-              countdown--;
-              if (countdown <= 0) {
-                clearInterval(interval);
-                countdownStart.classList.add("hidden");
+          countdownStart.classList.remove("hidden");
+          let countdown = 3;
+          countdownStart.innerText = `Bắt đầu trong ${countdown}...`;
+          const interval = setInterval(() => {
+            countdown--;
+            if (countdown <= 0) {
+              clearInterval(interval);
+              countdownStart.classList.add("hidden");
+              if (!isAdmin) {
                 startQuiz(currentQuizId);
               } else {
-                countdownStart.innerText = `Bắt đầu trong ${countdown}...`;
+                startBtn.classList.add("hidden");
+                endBtn.classList.remove("hidden");
+                interruptBtn.classList.remove("hidden");
               }
-            }, 1000);
-          }
-        }
-        if (msg.type === "start") {
-          if (isAdmin) {
-            startBtn.classList.add("hidden");
-            endBtn.classList.remove("hidden");
-            interruptBtn.classList.remove("hidden");
-          }
+            } else {
+              countdownStart.innerText = `Bắt đầu trong ${countdown}...`;
+            }
+          }, 1000);
         }
         if (msg.type === "end" || msg.type === "interrupt") {
           if (!isAdmin) {
@@ -1014,20 +930,7 @@
           return;
         }
         if (socket && socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify({ type: "startCountdown", timeLimit }));
-          countdownStart.classList.remove("hidden");
-          let countdown = 3;
-          countdownStart.innerText = `Bắt đầu trong ${countdown}...`;
-          const interval = setInterval(() => {
-            countdown--;
-            if (countdown <= 0) {
-              clearInterval(interval);
-              countdownStart.classList.add("hidden");
-              socket.send(JSON.stringify({ type: "start", timeLimit }));
-            } else {
-              countdownStart.innerText = `Bắt đầu trong ${countdown}...`;
-            }
-          }, 1000);
+          socket.send(JSON.stringify({ type: "startCountdown", timeLimit, quizId: currentQuizId }));
         } else {
           notification.innerText = "Không thể bắt đầu. Kết nối WebSocket không hoạt động.";
         }
@@ -1056,7 +959,7 @@
 
     async function fetchResults() {
       try {
-        const res = await fetch("/results");
+        const res = await fetch(`/results?roomCode=${currentRoomCode}`);
         const results = await res.json();
         if (isAdmin) {
           const sortedResults = results.sort((a, b) => b.score - a.score);
@@ -1098,11 +1001,10 @@
           resultTime.innerText = `Thời gian nộp: ${new Date().toLocaleString()}`;
           quizForm.querySelector("button[type=submit]").disabled = true;
           clearInterval(timerInterval);
+          notification.innerText = "";
           if (isAdminControlled && socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ type: "submitted", username: user.name }));
           }
-          countdownToggle.classList.add("hidden");
-          countdownPanel.classList.add("hidden");
         } else {
           notification.innerText = result.message || "Lỗi khi nộp bài!";
         }
