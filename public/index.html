@@ -3,19 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="google-signin-client_id" content="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com">
-  <title>Quiz App</title>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <meta name="google-signin-client_id" content="207656291282-cedkb5qkbeek0s9dbaca2o3ia3svjesv.apps.googleusercontent.com">
+  <title>TOEIC Quiz App</title>
+  <!-- Tải Google Sign-In script với xử lý lỗi -->
+  <script src="https://accounts.google.com/gsi/client" async defer onload="onGoogleScriptLoad()" onerror="onGoogleScriptError()"></script>
+  <!-- Tải Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 font-sans">
+  <!-- Thông báo tải ứng dụng -->
   <div id="download-notice" class="fixed top-4 right-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 hidden">
     <p class="font-bold">Thông báo</p>
     <p>Vui lòng tải xuống ứng dụng của chúng tôi để có trải nghiệm tốt nhất!</p>
   </div>
 
+  <!-- Màn hình chào mừng -->
   <div id="welcome-screen" class="container mx-auto p-4">
-    <h1 class="text-3xl font-bold mb-4">Quiz App</h1>
+    <h1 class="text-3xl font-bold mb-4">TOEIC Quiz App</h1>
     <p id="notification" class="text-red-500 mb-4"></p>
     <div class="space-y-4">
       <button onclick="showAdminLogin()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Đăng nhập Admin</button>
@@ -23,6 +27,7 @@
     </div>
   </div>
 
+  <!-- Màn hình đăng nhập Admin -->
   <div id="admin-login" class="container mx-auto p-4 hidden">
     <h1 class="text-3xl font-bold mb-4">Đăng nhập Admin</h1>
     <p id="notification" class="text-red-500 mb-4"></p>
@@ -31,10 +36,12 @@
          data-callback="handleAdminCredentialResponse"
          data-auto_prompt="false">
     </div>
-    <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline" data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left"></div>
+    <div id="google-signin-button" class="g_id_signin hidden" data-type="standard" data-size="large" data-theme="outline" data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left"></div>
+    <p id="google-script-error" class="text-red-500 mb-4 hidden">Không thể tải Google Sign-In. Vui lòng kiểm tra mạng hoặc thử lại sau.</p>
     <button onclick="showWelcomeScreen()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
   </div>
 
+  <!-- Màn hình đăng nhập Học sinh -->
   <div id="student-login" class="container mx-auto p-4 hidden">
     <h1 class="text-3xl font-bold mb-4">Đăng nhập Học sinh</h1>
     <p id="notification" class="text-red-500 mb-4"></p>
@@ -48,6 +55,7 @@
     <button onclick="showWelcomeScreen()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
   </div>
 
+  <!-- Màn hình danh sách đề thi -->
   <div id="quiz-list-screen" class="container mx-auto p-4 hidden">
     <div class="flex justify-between items-center mb-4">
       <h1 class="text-3xl font-bold">Danh sách đề thi</h1>
@@ -80,6 +88,7 @@
     </table>
   </div>
 
+  <!-- Màn hình kiểm tra trực tiếp -->
   <div id="direct-test-screen" class="container mx-auto p-4 hidden">
     <h1 class="text-3xl font-bold mb-4">Kiểm tra trực tiếp</h1>
     <p id="notification" class="text-red-500 mb-4"></p>
@@ -99,6 +108,7 @@
     </table>
   </div>
 
+  <!-- Màn hình tải lên đề thi -->
   <div id="upload-quizzes" class="container mx-auto p-4 hidden">
     <h1 class="text-3xl font-bold mb-4">Tải lên đề thi</h1>
     <p id="notification" class="text-red-500 mb-4"></p>
@@ -107,6 +117,7 @@
     <button onclick="backToQuizList()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
   </div>
 
+  <!-- Màn hình lịch sử điểm -->
   <div id="history-screen" class="container mx-auto p-4 hidden">
     <h1 class="text-3xl font-bold mb-4">Lịch sử điểm</h1>
     <p id="notification" class="text-red-500 mb-4"></p>
@@ -125,6 +136,7 @@
     </table>
   </div>
 
+  <!-- Màn hình tạo đề thi - Bước 1: Tên và file nghe -->
   <div id="admin-step-audio" class="container mx-auto p-4 hidden admin-step">
     <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 1: Tên và file nghe</h1>
     <p id="notification-audio" class="text-red-500 mb-4"></p>
@@ -156,6 +168,7 @@
     </div>
   </div>
 
+  <!-- Màn hình tạo đề thi - Bước 2: Part 1 -->
   <div id="admin-step-part1" class="container mx-auto p-4 hidden admin-step">
     <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 2: Part 1</h1>
     <p id="notification-part1" class="text-red-500 mb-4"></p>
@@ -176,6 +189,7 @@
     </div>
   </div>
 
+  <!-- Màn hình tạo đề thi - Bước 3: Part 2 -->
   <div id="admin-step-part2" class="container mx-auto p-4 hidden admin-step">
     <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 3: Part 2</h1>
     <p id="notification-part2" class="text-red-500 mb-4"></p>
@@ -196,6 +210,7 @@
     </div>
   </div>
 
+  <!-- Màn hình tạo đề thi - Bước 4: Part 3 -->
   <div id="admin-step-part3" class="container mx-auto p-4 hidden admin-step">
     <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 4: Part 3</h1>
     <p id="notification-part3" class="text-red-500 mb-4"></p>
@@ -216,6 +231,7 @@
     </div>
   </div>
 
+  <!-- Màn hình tạo đề thi - Bước 5: Part 4 -->
   <div id="admin-step-part4" class="container mx-auto p-4 hidden admin-step">
     <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 5: Part 4</h1>
     <p id="notification-part4" class="text-red-500 mb-4"></p>
@@ -236,6 +252,7 @@
     </div>
   </div>
 
+  <!-- Màn hình tạo đề thi - Bước 6: Part 5 -->
   <div id="admin-step-part5" class="container mx-auto p-4 hidden admin-step">
     <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 6: Part 5</h1>
     <p id="notification-part5" class="text-red-500 mb-4"></p>
@@ -256,6 +273,7 @@
     </div>
   </div>
 
+  <!-- Màn hình tạo đề thi - Bước 7: Part 6 -->
   <div id="admin-step-part6" class="container mx-auto p-4 hidden admin-step">
     <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 7: Part 6</h1>
     <p id="notification-part6" class="text-red-500 mb-4"></p>
@@ -276,6 +294,7 @@
     </div>
   </div>
 
+  <!-- Màn hình tạo đề thi - Bước 8: Part 7 -->
   <div id="admin-step-part7" class="container mx-auto p-4 hidden admin-step">
     <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 8: Part 7</h1>
     <p id="notification-part7" class="text-red-500 mb-4"></p>
@@ -296,20 +315,19 @@
     </div>
   </div>
 
+  <!-- Màn hình làm bài thi -->
   <div id="quiz-container" class="container mx-auto p-4 hidden">
-    <h1 class="text-3xl font-bold mb-4">Bài thi</h1>
+    <h1 class="text-3xl font-bold mb-4">Bài thi TOEIC</h1>
     <p id="notification" class="text-red-500 mb-4"></p>
     <p id="timer" class="text-lg mb-4 hidden"></p>
     <audio id="audio" controls class="mb-4 hidden">
       <source id="audio-source" src="" type="audio/mpeg">
     </audio>
     <div class="flex flex-col md:flex-row h-[calc(100vh-200px)] gap-4">
-      <!-- Cột trái: Danh sách ảnh -->
       <div id="image-list" class="w-full md:w-1/2 bg-white p-4 rounded-lg shadow overflow-y-auto">
         <h3 class="text-lg font-semibold mb-2">Ảnh Part <span id="image-part-number"></span></h3>
         <div id="image-content" class="space-y-4"></div>
       </div>
-      <!-- Cột phải: Danh sách câu hỏi -->
       <div id="question-list" class="w-full md:w-1/2 bg-white p-4 rounded-lg shadow overflow-y-auto">
         <h3 class="text-lg font-semibold mb-2">Câu hỏi Part <span id="question-part-number"></span></h3>
         <form id="quizForm" class="space-y-4">
@@ -338,12 +356,13 @@
             <button type="button" onclick="prevQuizPart(currentQuizPart + 1)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Phần trước</button>
             <button type="button" onclick="nextQuizPart(currentQuizPart + 1)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Phần tiếp theo</button>
             <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Nộp bài</button>
+          </div>
+        </form>
       </div>
-    </form>
+    </div>
   </div>
-</div>
-</div>
 
+  <!-- Màn hình kết quả -->
   <div id="result-screen" class="container mx-auto p-4 hidden">
     <h1 class="text-3xl font-bold mb-4">Kết quả</h1>
     <p id="notification" class="text-red-500 mb-4"></p>
@@ -353,14 +372,21 @@
   </div>
 
   <script>
+    // Khởi tạo biến toàn cục
     let user = null;
     let isAdmin = false;
-    let timeLeft = 7200;
+    let timeLeft = 7200; // 120 phút
     let timerInterval = null;
     let isAdminControlled = false;
     let selectedQuizId = null;
     let isDirectTestMode = false;
     let isTestEnded = false;
+    let currentAdminStep = 0;
+    let currentQuizPart = 0;
+    const partAnswerCounts = [6, 25, 39, 30, 30, 16, 54]; // Số đáp án mỗi part
+    let socket = null;
+
+    // Tham chiếu DOM
     const welcomeScreen = document.getElementById("welcome-screen");
     const adminLogin = document.getElementById("admin-login");
     const studentLogin = document.getElementById("student-login");
@@ -401,13 +427,37 @@
     const resultScore = document.getElementById("result-score");
     const resultTime = document.getElementById("result-time");
     const downloadNotice = document.getElementById("download-notice");
-
     const wsProtocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
-    let socket = null;
-    let currentAdminStep = 0;
-    let currentQuizPart = 0;
-    const partAnswerCounts = [6, 25, 39, 30, 30, 16, 54];
 
+    // Xử lý tải Google Sign-In script
+    function onGoogleScriptLoad() {
+      console.log("Google Sign-In script loaded successfully.");
+      document.getElementById("google-signin-button").classList.remove("hidden");
+      document.getElementById("google-script-error").classList.add("hidden");
+    }
+
+    function onGoogleScriptError() {
+      console.error("Failed to load Google Sign-In script.");
+      document.getElementById("google-script-error").classList.remove("hidden");
+      document.getElementById("google-signin-button").classList.add("hidden");
+      notification.innerText = "Không thể tải Google Sign-In. Vui lòng kiểm tra mạng.";
+    }
+
+    // Ẩn tất cả màn hình
+    function hideAllScreens() {
+      welcomeScreen.classList.add("hidden");
+      adminLogin.classList.add("hidden");
+      studentLogin.classList.add("hidden");
+      quizListScreen.classList.add("hidden");
+      directTestScreen.classList.add("hidden");
+      uploadQuizzesSection.classList.add("hidden");
+      historyScreen.classList.add("hidden");
+      quizContainer.classList.add("hidden");
+      resultScreen.classList.add("hidden");
+      document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
+    }
+
+    // Lưu trạng thái Admin
     function saveAdminState() {
       if (isAdmin && user) {
         localStorage.setItem("adminState", JSON.stringify({
@@ -422,6 +472,12 @@
       }
     }
 
+    // Xóa trạng thái
+    function clearState() {
+      localStorage.removeItem("adminState");
+    }
+
+    // Lấy màn hình hiện tại
     function getCurrentScreen() {
       if (!welcomeScreen.classList.contains("hidden")) return "welcome-screen";
       if (!adminLogin.classList.contains("hidden")) return "admin-login";
@@ -441,68 +497,58 @@
       return "welcome-screen";
     }
 
+    // Khôi phục trạng thái Admin
     async function restoreAdminState() {
       const adminState = localStorage.getItem("adminState");
       if (adminState) {
-        const state = JSON.parse(adminState);
-        if (state.isAdmin && state.user) {
-          user = state.user;
-          isAdmin = true;
-          selectedQuizId = state.selectedQuizId;
-          isDirectTestMode = state.isDirectTestMode;
-          isTestEnded = state.isTestEnded;
-          currentAdminStep = state.currentAdminStep;
+        try {
+          const state = JSON.parse(adminState);
+          if (state.isAdmin && state.user) {
+            user = state.user;
+            isAdmin = true;
+            selectedQuizId = state.selectedQuizId;
+            isDirectTestMode = state.isDirectTestMode;
+            isTestEnded = state.isTestEnded;
+            currentAdminStep = state.currentAdminStep;
 
-          hideAllScreens();
-          if (state.screen === "quiz-list-screen") {
-            quizListScreen.classList.remove("hidden");
-            adminOptions.classList.remove("hidden");
-            adminControls.classList.remove("hidden");
-            if (selectedQuizId) {
-              assignBtn.classList.remove("hidden");
-              directTestBtn.classList.remove("hidden");
+            hideAllScreens();
+            if (state.screen === "quiz-list-screen") {
+              quizListScreen.classList.remove("hidden");
+              adminOptions.classList.remove("hidden");
+              adminControls.classList.remove("hidden");
+              if (selectedQuizId) {
+                assignBtn.classList.remove("hidden");
+                directTestBtn.classList.remove("hidden");
+              }
+              await loadQuizzes();
+            } else if (state.screen === "direct-test-screen") {
+              directTestScreen.classList.remove("hidden");
+              endDirectTestBtn.disabled = isTestEnded;
+              if (isTestEnded) {
+                await fetchDirectResults();
+              }
+            } else if (state.screen === "upload-quizzes") {
+              uploadQuizzesSection.classList.remove("hidden");
+            } else if (state.screen === "history-screen") {
+              historyScreen.classList.remove("hidden");
+              await loadHistory();
+            } else if (state.screen.startsWith("admin-step-")) {
+              document.getElementById(state.screen).classList.remove("hidden");
             }
-            await loadQuizzes();
-          } else if (state.screen === "direct-test-screen") {
-            directTestScreen.classList.remove("hidden");
-            endDirectTestBtn.disabled = isTestEnded;
-            if (isTestEnded) {
-              await fetchDirectResults();
-            }
-          } else if (state.screen === "upload-quizzes") {
-            uploadQuizzesSection.classList.remove("hidden");
-          } else if (state.screen === "history-screen") {
-            historyScreen.classList.remove("hidden");
-            await loadHistory();
-          } else if (state.screen.startsWith("admin-step-")) {
-            document.getElementById(state.screen).classList.remove("hidden");
+
+            initializeWebSocket();
+            downloadNotice.classList.add("hidden");
+            return true;
           }
-
-          initializeWebSocket();
-          downloadNotice.classList.add("hidden");
-          return true;
+        } catch (error) {
+          console.error("Error restoring admin state:", error);
+          clearState();
         }
       }
       return false;
     }
 
-    function hideAllScreens() {
-      welcomeScreen.classList.add("hidden");
-      adminLogin.classList.add("hidden");
-      studentLogin.classList.add("hidden");
-      quizListScreen.classList.add("hidden");
-      directTestScreen.classList.add("hidden");
-      uploadQuizzesSection.classList.add("hidden");
-      historyScreen.classList.add("hidden");
-      quizContainer.classList.add("hidden");
-      resultScreen.classList.add("hidden");
-      document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
-    }
-
-    function clearState() {
-      localStorage.removeItem("adminState");
-    }
-
+    // Hiển thị thông báo tải ứng dụng
     function showDownloadNotice() {
       downloadNotice.classList.remove("hidden");
       setTimeout(() => {
@@ -518,12 +564,12 @@
       }, 30000);
     }
 
+    // Chuyển màn hình
     function showAdminLogin() {
       hideAllScreens();
       adminLogin.classList.remove("hidden");
       notification.innerText = "";
       downloadNotice.classList.add("hidden");
-      saveAdminState();
     }
 
     function showStudentLogin() {
@@ -553,6 +599,49 @@
       startDownloadNotice();
     }
 
+    function logout() {
+      showWelcomeScreen();
+    }
+
+    function backToQuizList() {
+      hideAllScreens();
+      quizListScreen.classList.remove("hidden");
+      if (isAdmin) {
+        adminOptions.classList.remove("hidden");
+        adminControls.classList.remove("hidden");
+        if (selectedQuizId) {
+          assignBtn.classList.remove("hidden");
+          directTestBtn.classList.remove("hidden");
+        }
+      } else {
+        adminOptions.classList.add("hidden");
+        adminControls.classList.add("hidden");
+      }
+      notification.innerText = "";
+      isDirectTestMode = false;
+      isTestEnded = false;
+      endDirectTestBtn.disabled = false;
+      directResultsTable.classList.add("hidden");
+      downloadNotice.classList.add("hidden");
+      loadQuizzes();
+      if (isAdmin) saveAdmin州ate();
+    }
+
+    function createNewQuiz() {
+      hideAllScreens();
+      document.getElementById("admin-step-audio").classList.remove("hidden");
+      downloadNotice.classList.add("hidden");
+      currentAdminStep = 0;
+      saveAdminState();
+    }
+
+    function showUploadQuizzes() {
+      hideAllScreens();
+      uploadQuizzesSection.classList.remove("hidden");
+      downloadNotice.classList.add("hidden");
+      saveAdminState();
+    }
+
     function showHistoryScreen() {
       hideAllScreens();
       historyScreen.classList.remove("hidden");
@@ -560,43 +649,23 @@
       saveAdminState();
     }
 
-    function initializeWebSocket() {
-      try {
-        socket = new WebSocket(wsProtocol + location.host);
-        socket.onopen = () => {
-          console.log("WebSocket connected successfully.");
-          if (user && user.name) {
-            socket.send(JSON.stringify({ type: "login", username: user.name }));
-          }
-          socket.send(JSON.stringify({ type: "requestQuizStatus" }));
-          notification.innerText = "";
-        };
-        socket.onmessage = handleWebSocketMessage;
-        socket.onerror = (error) => {
-          console.error("WebSocket error:", error);
-          notification.innerText = "Lỗi kết nối WebSocket. Một số thông tin (như số bài nộp) có thể không cập nhật.";
-        };
-        socket.onclose = () => {
-          console.log("WebSocket closed. Attempting to reconnect...");
-          socket = null;
-          notification.innerText = "Mất kết nối WebSocket. Đang thử kết nối lại...";
-          setTimeout(initializeWebSocket, 3000);
-        };
-      } catch (error) {
-        console.error("Failed to initialize WebSocket:", error);
-        notification.innerText = "Không thể khởi tạo WebSocket. Vẫn có thể tiếp tục sử dụng.";
-      }
-    }
-
+    // Xử lý đăng nhập Admin qua Google
     window.handleAdminCredentialResponse = async (response) => {
+      console.log("Handling Google Sign-In response...");
       try {
         if (!response.credential) {
           throw new Error("No credential received from Google Sign-In.");
         }
-        const profile = JSON.parse(atob(response.credential.split('.')[1]));
-        if (!profile.email) {
-          throw new Error("Unable to retrieve email from Google profile.");
+        let profile;
+        try {
+          profile = JSON.parse(atob(response.credential.split('.')[1]));
+        } catch (e) {
+          throw new Error("Invalid JWT format from Google Sign-In.");
         }
+        if (!profile.email || !profile.name) {
+          throw new Error("Missing email or name in Google profile.");
+        }
+        console.log("Google profile retrieved:", profile.email);
         user = { name: profile.name, email: profile.email };
         isAdmin = true;
         hideAllScreens();
@@ -607,15 +676,18 @@
         await loadQuizzes();
         downloadNotice.classList.add("hidden");
         saveAdminState();
+        console.log("Admin login successful.");
       } catch (error) {
         console.error("Error during Admin login:", error);
-        notification.innerText = "Đăng nhập Admin thất bại. Vui lòng thử lại hoặc kiểm tra Client ID.";
+        notification.innerText = `Đăng nhập Admin thất bại: ${error.message}. Vui lòng kiểm tra kết nối và thử lại.`;
         showWelcomeScreen();
       }
     };
 
+    // Xử lý đăng nhập Học sinh
     studentNameForm.onsubmit = async (e) => {
       e.preventDefault();
+      console.log("Handling student login...");
       const nameInput = document.getElementById("student-name");
       const name = nameInput.value.trim();
       
@@ -639,6 +711,7 @@
       initializeWebSocket();
       try {
         await loadQuizzes();
+        console.log("Student login successful.");
       } catch (error) {
         console.error("Error loading quizzes:", error);
         notification.innerText = "Không thể tải danh sách đề thi. Vui lòng thử lại.";
@@ -646,129 +719,60 @@
       }
     };
 
-    function backToQuizList() {
-      hideAllScreens();
-      quizListScreen.classList.remove("hidden");
-      if (isAdmin) {
-        adminOptions.classList.remove("hidden");
-        adminControls.classList.remove("hidden");
-        if (selectedQuizId) {
-          assignBtn.classList.remove("hidden");
-          directTestBtn.classList.remove("hidden");
-        }
-      } else {
-        adminOptions.classList.add("hidden");
-        adminControls.classList.add("hidden");
-      }
-      notification.innerText = "";
-      isDirectTestMode = false;
-      isTestEnded = false;
-      endDirectTestBtn.disabled = false;
-      directResultsTable.classList.add("hidden");
-      downloadNotice.classList.add("hidden");
-      loadQuizzes();
-      if (isAdmin) saveAdminState();
-    }
-
-    function createNewQuiz() {
-      hideAllScreens();
-      document.getElementById("admin-step-audio").classList.remove("hidden");
-      downloadNotice.classList.add("hidden");
-      saveAdminState();
-    }
-
-    function showUploadQuizzes() {
-      hideAllScreens();
-      uploadQuizzesSection.classList.remove("hidden");
-      downloadNotice.classList.add("hidden");
-      saveAdminState();
-    }
-
-    async function uploadQuizzes() {
-      const file = quizzesFileInput.files[0];
-      if (!file) {
-        notification.innerText = "Vui lòng chọn file (.json hoặc .zip)!";
-        return;
-      }
-
-      const formData = new FormData();
-      formData.append("quizzes", file);
-
+    // Khởi tạo WebSocket
+    function initializeWebSocket() {
       try {
-        let endpoint = file.name.endsWith('.zip') ? '/upload-quizzes-zip' : '/upload-quizzes';
-        const res = await fetch(endpoint, {
-          method: "POST",
-          body: formData,
-        });
-        const result = await res.json();
-        notification.innerText = result.message;
-        if (res.ok) {
-          backToQuizList();
-        } else {
-          throw new Error(result.message || "Upload failed");
+        socket = new WebSocket(wsProtocol + location.host);
+        socket.onopen = () => {
+          console.log("WebSocket connected successfully.");
+          if (user && user.name) {
+            socket.send(JSON.stringify({ type: "login", username: user.name }));
+          }
+          socket.send(JSON.stringify({ type: "requestQuizStatus" }));
+          notification.innerText = "";
+        };
+        socket.onmessage = handleWebSocketMessage;
+        socket.onerror = (error) => {
+          console.error("WebSocket error:", error);
+          notification.innerText = "Lỗi kết nối WebSocket. Một số thông tin có thể không cập nhật.";
+        };
+        socket.onclose = () => {
+          console.log("WebSocket closed. Attempting to reconnect...");
+          socket = null;
+          notification.innerText = "Mất kết nối WebSocket. Đang thử kết nối lại...";
+          setTimeout(initializeWebSocket, 3000);
+        };
+      } catch (error) {
+        console.error("Failed to initialize WebSocket:", error);
+        notification.innerText = "Không thể khởi tạo WebSocket. Vẫn có thể tiếp tục sử dụng.";
+      }
+    }
+
+    // Xử lý tin nhắn WebSocket
+    function handleWebSocketMessage(event) {
+      try {
+        const data = JSON.parse(event.data);
+        switch (data.type) {
+          case "quizStatus":
+            quizStatus.innerText = data.quizId ? `Đề thi hiện tại: ${data.quizName}` : "Chưa có đề thi được chọn.";
+            break;
+          case "participantUpdate":
+            participantCount.innerText = `Số người tham gia: ${data.count}`;
+            directParticipantCount.innerText = `Số người tham gia: ${data.count}`;
+            break;
+          case "submissionUpdate":
+            submittedCount.innerText = `Số bài đã nộp: ${data.count}`;
+            directSubmittedCount.innerText = `Số bài đã nộp: ${data.count}`;
+            break;
+          default:
+            console.warn("Unknown WebSocket message type:", data.type);
         }
       } catch (error) {
-        console.error("Error uploading quizzes:", error);
-        notification.innerText = "Lỗi khi tải lên file. Vui lòng kiểm tra định dạng file và thử lại.";
+        console.error("Error handling WebSocket message:", error);
       }
     }
 
-    async function downloadQuizzes(quizId) {
-      try {
-        const res = await fetch(`/download-quiz-zip/${quizId}`);
-        if (!res.ok) {
-          throw new Error(`HTTP error! Status: ${res.status}`);
-        }
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `quiz_${quizId}.zip`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        notification.innerText = "Đã tải xuống file ZIP chứa đề thi.";
-      } catch (error) {
-        console.error("Error downloading quiz:", error);
-        notification.innerText = "Lỗi khi tải xuống file ZIP. Vui lòng thử lại.";
-      }
-    }
-
-    async function clearDatabase() {
-      if (!confirm("Bạn có chắc muốn xóa toàn bộ database? Hành động này không thể hoàn tác!")) return;
-      try {
-        const res = await fetch("/clear-database", {
-          method: "DELETE",
-        });
-        const result = await res.json();
-        notification.innerText = result.message;
-        if (res.ok) {
-          selectedQuizId = null;
-          loadQuizzes();
-          if (isAdmin) saveAdminState();
-        } else {
-          throw new Error(result.message || 'Lỗi không xác định');
-        }
-      } catch (error) {
-        console.error("Error clearing database:", error);
-        notification.innerText = `Lỗi khi xóa database: ${error.message}. Vui lòng thử lại.`;
-      }
-    }
-
-    async function fetchWithRetry(url, retries = 5, delay = 2000) {
-      for (let i = 0; i < retries; i++) {
-        try {
-          const res = await fetch(url);
-          if (res.ok) return res;
-          throw new Error(`HTTP error! Status: ${res.status}`);
-        } catch (error) {
-          if (i === retries - 1) throw error;
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
-      }
-    }
-
+    // Tải danh sách đề thi
     async function loadQuizzes() {
       const url = isAdmin ? `/quizzes?email=${encodeURIComponent(user.email)}` : '/quizzes';
       try {
@@ -814,25 +818,21 @@
       }
     }
 
-    async function deleteQuiz(quizId) {
-      if (!confirm("Bạn có chắc muốn xóa đề thi này?")) return;
-      try {
-        const res = await fetch(`/delete-quiz/${quizId}`, {
-          method: "DELETE",
-        });
-        const result = await res.json();
-        notification.innerText = result.message;
-        if (res.ok) {
-          if (selectedQuizId === quizId) selectedQuizId = null;
-          loadQuizzes();
-          if (isAdmin) saveAdminState();
+    // Hàm fetch với retry
+    async function fetchWithRetry(url, retries = 5, delay = 2000) {
+      for (let i = 0; i < retries; i++) {
+        try {
+          const res = await fetch(url);
+          if (res.ok) return res;
+          throw new Error(`HTTP error! Status: ${res.status}`);
+        } catch (error) {
+          if (i === retries - 1) throw error;
+          await new Promise(resolve => setTimeout(resolve, delay));
         }
-      } catch (error) {
-        console.error("Error deleting quiz:", error);
-        notification.innerText = "Lỗi khi xóa đề thi. Vui lòng thử lại.";
       }
     }
 
+    // Chọn đề thi
     async function selectQuiz(quizId) {
       try {
         const res = await fetch("/select-quiz", {
@@ -860,6 +860,7 @@
       }
     }
 
+    // Giao bài
     async function assignQuiz() {
       if (!selectedQuizId) {
         notification.innerText = "Vui lòng chọn một đề thi trước!";
@@ -895,6 +896,7 @@
       }
     }
 
+    // Bắt đầu kiểm tra trực tiếp
     async function startDirectTest() {
       if (!selectedQuizId) {
         notification.innerText = "Vui lòng chọn một đề thi trước!";
@@ -935,6 +937,7 @@
       }
     }
 
+    // Kết thúc kiểm tra trực tiếp
     async function endDirectTest() {
       if (isTestEnded) {
         notification.innerText = "Kiểm tra đã kết thúc!";
@@ -950,6 +953,7 @@
       saveAdminState();
     }
 
+    // Tải kết quả kiểm tra trực tiếp
     async function fetchDirectResults() {
       try {
         const res = await fetch("/direct-results");
@@ -976,6 +980,7 @@
       }
     }
 
+    // Tải lịch sử điểm
     async function loadHistory() {
       try {
         const res = await fetch("/results");
@@ -1001,6 +1006,7 @@
       }
     }
 
+    // Chọn tất cả checkbox
     function toggleSelectAll() {
       const selectAll = document.getElementById("select-all");
       const checkboxes = document.querySelectorAll(".result-checkbox");
@@ -1009,6 +1015,7 @@
       });
     }
 
+    // Xóa kết quả đã chọn
     async function deleteSelectedResults() {
       const checkboxes = document.querySelectorAll(".result-checkbox:checked");
       const indices = Array.from(checkboxes).map(cb => parseInt(cb.dataset.index));
@@ -1029,6 +1036,102 @@
       }
     }
 
+    // Tải lên đề thi
+    async function uploadQuizzes() {
+      const file = quizzesFileInput.files[0];
+      if (!file) {
+        notification.innerText = "Vui lòng chọn file (.json hoặc .zip)!";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("quizzes", file);
+
+      try {
+        let endpoint = file.name.endsWith('.zip') ? '/upload-quizzes-zip' : '/upload-quizzes';
+        const res = await fetch(endpoint, {
+          method: "POST",
+          body: formData,
+        });
+        const result = await res.json();
+        notification.innerText = result.message;
+        if (res.ok) {
+          backToQuizList();
+        } else {
+          throw new Error(result.message || "Upload failed");
+        }
+      } catch (error) {
+        console.error("Error uploading quizzes:", error);
+        notification.innerText = "Lỗi khi tải lên file. Vui lòng kiểm tra định dạng file và thử lại.";
+      }
+    }
+
+    // Tải xuống đề thi
+    async function downloadQuizzes(quizId) {
+      try {
+        const res = await fetch(`/download-quiz-zip/${quizId}`);
+        if (!res.ok) {
+          throw new Error(`HTTP error! Status: ${res.status}`);
+        }
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `quiz_${quizId}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        notification.innerText = "Đã tải xuống file ZIP chứa đề thi.";
+      } catch (error) {
+        console.error("Error downloading quiz:", error);
+        notification.innerText = "Lỗi khi tải xuống file ZIP. Vui lòng thử lại.";
+      }
+    }
+
+    // Xóa đề thi
+    async function deleteQuiz(quizId) {
+      if (!confirm("Bạn có chắc muốn xóa đề thi này?")) return;
+      try {
+        const res = await fetch(`/delete-quiz/${quizId}`, {
+          method: "DELETE",
+        });
+        const result = await res.json();
+        notification.innerText = result.message;
+        if (res.ok) {
+          if (selectedQuizId === quizId) selectedQuizId = null;
+          loadQuizzes();
+          if (isAdmin) saveAdminState();
+        }
+      } catch (error) {
+        console.error("Error deleting quiz:", error);
+        notification.innerText = "Lỗi khi xóa đề thi. Vui lòng thử lại.";
+      }
+    }
+
+    // Xóa database
+    async function clearDatabase() {
+      if (!confirm("Bạn có chắc muốn xóa toàn bộ database? Hành động này không thể hoàn tác!")) return;
+      try {
+        const res = await fetch("/clear-database", {
+          method: "DELETE",
+        });
+        const result = await res.json();
+        notification.innerText = result.message;
+        if (res.ok) {
+          selectedQuizId = null;
+          loadQuizzes();
+          if (isAdmin) saveAdminState();
+        } else {
+          throw new Error(result.message || 'Lỗi không xác định');
+        }
+      } catch (error) {
+        console.error("Error clearing database:", error);
+        notification.innerText = `Lỗi khi xóa database: ${error.message}. Vui lòng thử lại.`;
+      }
+    }
+
+    // Bắt đầu bài thi
     async function startQuiz(quizId) {
       selectedQuizId = quizId;
       hideAllScreens();
@@ -1039,6 +1142,7 @@
       downloadNotice.classList.add("hidden");
     }
 
+    // Tải phần thi
     async function loadQuizPart(part) {
       try {
         const audioRes = await fetch(`/quiz-audio?part=part${part}`);
@@ -1092,6 +1196,7 @@
       }
     }
 
+    // Chuyển phần thi trước/sau
     function prevQuizPart(current) {
       if (current <= 1) return;
       currentQuizPart = current - 1;
@@ -1104,6 +1209,7 @@
       loadQuizPart(currentQuizPart);
     }
 
+    // Bắt đầu đồng hồ
     function startTimer() {
       timerDisplay.classList.remove("hidden");
       timerInterval = setInterval(() => {
@@ -1119,6 +1225,7 @@
       }, 1000);
     }
 
+    // Nộp bài
     quizForm.onsubmit = async (e) => {
       e.preventDefault();
       clearInterval(timerInterval);
@@ -1150,10 +1257,12 @@
       }
     }
 
+    // Kiểm tra đáp án
     function validateAnswers(answers, expectedCount, part) {
-      if (!answers) return `Vui lòng nhập đáp án cho Part ${part}!`;
-      
-      // Chia chuỗi và lọc bỏ phần tử rỗng
+      if (!answers || answers.trim() === "") {
+        return `Vui lòng nhập đáp án cho Part ${part}!`;
+      }
+      // Chia chuỗi, chuẩn hóa và lọc bỏ phần tử rỗng
       const answerArray = answers
         .split(",")
         .map(a => a.trim().toUpperCase())
@@ -1175,11 +1284,13 @@
       return null;
     }
 
+    // Chuyển bước tạo đề thi
     async function nextAdminStep(step) {
       const notification = document.getElementById(`notification-part${step - 1}`) || document.getElementById("notification-audio");
       notification.innerText = "";
 
       if (step === 1) {
+        // Kiểm tra bước 1: Tên và file nghe
         const quizName = document.getElementById("quiz-name").value.trim();
         if (!quizName) {
           notification.innerText = "Vui lòng nhập tên đề thi!";
@@ -1198,6 +1309,7 @@
           }
         }
       } else {
+        // Kiểm tra đáp án cho các bước 2-8
         const answerKeyInput = document.getElementById(`answer-key-part${step - 1}`).value.trim();
         const error = validateAnswers(answerKeyInput, partAnswerCounts[step - 2], step - 1);
         if (error) {
@@ -1220,6 +1332,7 @@
       saveAdminState();
     }
 
+    // Quay lại bước trước
     function prevAdminStep(step) {
       document.querySelectorAll(".admin-step").forEach(s => s.classList.add("hidden"));
       const prevStep = step - 1;
@@ -1231,6 +1344,7 @@
       saveAdminState();
     }
 
+    // Lưu đề thi
     async function saveQuiz() {
       const saveButton = document.getElementById("save-quiz-btn");
       saveButton.disabled = true;
@@ -1293,7 +1407,7 @@
 
       try {
         const res = await fetch("/save-quiz", {
-          method cổ: "POST",
+          method: "POST",
           body: formData,
         });
         const result = await res.json();
@@ -1312,101 +1426,12 @@
       }
     }
 
-    function handleWebSocketMessage(event) {
-      try {
-        if (!event.data) {
-          console.warn("Received empty WebSocket message");
-          return;
-        }
-        const message = JSON.parse(event.data);
-        if (message.type === "quizStatus") {
-          quizStatus.innerText = message.quizId ? `Đề thi hiện tại: ${message.quizName}` : "Chưa có đề thi được chọn.";
-          selectedQuizId = message.quizId;
-          if (isAdmin && message.quizId) {
-            assignBtn.classList.remove("hidden");
-            directTestBtn.classList.remove("hidden");
-          }
-          loadQuizzes();
-        } else if (message.type === "participants" || message.type === "participantCount") {
-          participantCount.innerText = `Số người tham gia: ${message.count || 0}`;
-          directParticipantCount.innerText = `Số người tham gia: ${message.count || 0}`;
-        } else if (message.type === "submitted" || message.type === "submittedCount") {
-          const count = message.count !== undefined ? message.count : 0;
-          submittedCount.innerText = `Số bài đã nộp: ${count}`;
-          directSubmittedCount.innerText = `Số bài đã nộp: ${count}`;
-          if (isAdmin && message.results) {
-            resultsBody.innerHTML = "";
-            message.results.forEach(result => {
-              const tr = document.createElement("tr");
-              tr.innerHTML = `
-                <td class="border p-2">${result.username || 'Unknown'}</td>
-                <td class="border p-2">${result.score || 0}</td>
-                <td class="border p-2">${result.submittedAt ? new Date(result.submittedAt).toLocaleString() : 'N/A'}</td>
-              `;
-              resultsBody.appendChild(tr);
-            });
-            resultsTable.classList.remove("hidden");
-          }
-        } else if (message.type === "start") {
-          isAdminControlled = true;
-          timeLeft = message.timeLimit || 7200;
-          if (!isAdmin) {
-            hideAllScreens();
-            quizContainer.classList.remove("hidden");
-            timerDisplay.classList.remove("hidden");
-            audio.classList.remove("hidden");
-            loadAudio(1);
-            loadImages(1);
-            startTimer();
-            currentQuizPart = 0;
-            updatePartDisplay();
-            downloadNotice.classList.add("hidden");
-            notification.innerText = "Bài thi đã bắt đầu!";
-          }
-        } else if (message.type === "end") {
-          if (!isAdmin) {
-            submitQuiz();
-            notification.innerText = "Bài thi đã kết thúc!";
-          } else {
-            fetchDirectResults();
-          }
-        } else if (message.type === "error") {
-          notification.innerText = message.message;
-        }
-      } catch (error) {
-        console.error("Error handling WebSocket message:", error);
-        notification.innerText = "Lỗi khi xử lý thông tin từ server. Vui lòng kiểm tra kết nối.";
-      }
-    }
-
-    async function logout() {
-      try {
-        if (user && user.name) {
-          await fetch("/logout", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username: user.name }),
-          });
-        }
-      } catch (error) {
-        console.error("Error during logout:", error);
-      }
-      showWelcomeScreen();
-    }
-
+    // Khởi tạo ứng dụng
     document.addEventListener("DOMContentLoaded", async () => {
-      if (await restoreAdminState()) {
-        console.log("Admin state restored");
-      } else {
+      await restoreAdminState();
+      if (!user) {
         showWelcomeScreen();
       }
-      assignBtn.addEventListener("click", assignQuiz);
-      directTestBtn.addEventListener("click", startDirectTest);
-      endDirectTestBtn.addEventListener("click", endDirectTest);
-      quizForm.addEventListener("submit", (e) => {
-        e.preventDefault();
-        submitQuiz();
-      });
     });
   </script>
 </body>
