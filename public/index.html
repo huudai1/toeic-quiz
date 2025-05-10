@@ -263,6 +263,7 @@
     let isAdminControlled = false;
     let selectedQuizId = null;
     let isDirectTestMode = false;
+    let isTestEnded = false; // Biến kiểm tra trạng thái kết thúc kiểm tra
     const welcomeScreen = document.getElementById("welcome-screen");
     const adminLogin = document.getElementById("admin-login");
     const studentLogin = document.getElementById("student-login");
@@ -359,6 +360,7 @@
       isAdmin = false;
       selectedQuizId = null;
       isDirectTestMode = false;
+      isTestEnded = false;
       if (socket) {
         socket.close();
         socket = null;
@@ -434,7 +436,7 @@
       } catch (error) {
         console.error("Error during Student login:", error);
         notification.innerText = "Đăng nhập học sinh thất bại. Vui lòng thử lại.";
-        showWelcomeScreen();
+        showWelcomeShield();
       }
     };
 
@@ -447,6 +449,9 @@
       directTestScreen.classList.add("hidden");
       notification.innerText = "";
       isDirectTestMode = false;
+      isTestEnded = false;
+      endDirectTestBtn.disabled = false;
+      directResultsTable.classList.add("hidden");
       downloadNotice.classList.add("hidden");
       loadQuizzes();
     }
@@ -648,8 +653,11 @@
         const result = await res.json();
         if (res.ok) {
           isDirectTestMode = true;
+          isTestEnded = false;
           quizListScreen.classList.add("hidden");
           directTestScreen.classList.remove("hidden");
+          directResultsTable.classList.add("hidden");
+          endDirectTestBtn.disabled = false;
           if (socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ type: "start", timeLimit: timeLimitSeconds }));
           }
@@ -664,8 +672,15 @@
     }
 
     async function endDirectTest() {
+      if (isTestEnded) {
+        notification.innerText = "Kiểm tra đã kết thúc!";
+        return;
+      }
       if (socket && socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ type: "end" }));
+        isTestEnded = true;
+        endDirectTestBtn.disabled = true;
+        await fetchDirectResults();
       } else {
         notification.innerText = "Không thể gửi tín hiệu kết thúc. Kết nối WebSocket không hoạt động.";
       }
@@ -955,6 +970,8 @@
           if (!isAdmin) {
             submitQuiz();
           } else if (isDirectTestMode) {
+            isTestEnded = true;
+            endDirectTestBtn.disabled = true;
             directResultsTable.classList.remove("hidden");
             fetchDirectResults();
           } else {
@@ -965,6 +982,9 @@
         if (msg.type === "submitted") {
           const who = msg.username === user.name ? "Bạn" : msg.username;
           notification.innerText = `${who} đã nộp bài.`;
+          if (isAdmin && isDirectTestMode && isTestEnded) {
+            fetchDirectResults(); // Cập nhật danh sách kết quả ngay khi có bài nộp sau khi kết thúc
+          }
         }
         if (msg.type === "participantCount") {
           if (isAdmin) {
@@ -1025,16 +1045,21 @@
       try {
         const res = await fetch("/results");
         const results = await res.json();
-        directResultsBody.innerHTML = "";
-        results.forEach(result => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td class="border p-2">${result.username}</td>
-            <td class="border p-2">${result.score}/200</td>
-            <td class="border p-2">${new Date(result.timestamp).toLocaleString()}</td>
-          `;
-          directResultsBody.appendChild(tr);
-        });
+        directResultsBody.innerHTML = ""; // Xóa danh sách cũ để tránh lặp
+        if (results.length === 0) {
+          directResultsBody.innerHTML = '<tr><td colspan="3" class="border p-2 text-center">Chưa có kết quả.</td></tr>';
+        } else {
+          results.forEach(result => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td class="border p-2">${result.username}</td>
+              <td class="border p-2">${result.score}/200</td>
+              <td class="border p-2">${new Date(result.timestamp).toLocaleString()}</td>
+            `;
+            directResultsBody.appendChild(tr);
+          });
+        }
+        directResultsTable.classList.remove("hidden");
       } catch (error) {
         console.error("Error fetching direct results:", error);
         notification.innerText = "Lỗi khi tải kết quả kiểm tra trực tiếp. Vui lòng thử lại.";
