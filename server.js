@@ -115,6 +115,69 @@ async function loadResults() {
 loadQuizzes();
 loadResults();
 
+// Endpoint để lấy trạng thái đề thi
+app.get('/quiz-status', async (req, res) => {
+  try {
+    if (!currentQuiz) {
+      return res.status(200).json({ quizId: null, quizName: null });
+    }
+    res.status(200).json({ quizId: currentQuiz.quizId, quizName: currentQuiz.quizName });
+  } catch (err) {
+    console.error('Error fetching quiz status:', err);
+    res.status(500).json({ message: 'Error fetching quiz status' });
+  }
+});
+
+// Endpoint để lấy kết quả kiểm tra trực tiếp
+app.get('/direct-results', async (req, res) => {
+  try {
+    if (!currentQuiz) {
+      return res.status(200).json([]);
+    }
+    const quizResults = results.filter(r => r.quizId === currentQuiz.quizId).map(result => ({
+      username: result.username,
+      score: result.score,
+      submittedAt: new Date(result.timestamp)
+    }));
+    res.status(200).json(quizResults);
+  } catch (err) {
+    console.error('Error fetching direct results:', err);
+    res.status(500).json({ message: 'Error fetching direct results' });
+  }
+});
+
+// Endpoint để xóa database
+app.delete('/clear-database', async (req, res) => {
+  try {
+    quizzes = [];
+    results = [];
+    currentQuiz = null;
+    await saveQuizzes();
+    await saveResults();
+    broadcast({ type: 'quizStatus', quizExists: false });
+    res.status(200).json({ message: 'Database cleared successfully!' });
+  } catch (err) {
+    console.error('Error clearing database:', err);
+    res.status(500).json({ message: 'Error clearing database' });
+  }
+});
+
+// Endpoint để giao bài
+app.post('/assign-quiz', async (req, res) => {
+  const { quizId, timeLimit } = req.body;
+  if (!quizId || !timeLimit) {
+    return res.status(400).json({ message: 'Quiz ID and time limit are required' });
+  }
+  const quiz = quizzes.find((q) => q.quizId === quizId);
+  if (!quiz) {
+    return res.status(404).json({ message: 'Quiz not found' });
+  }
+  quiz.isAssigned = true;
+  await saveQuizzes();
+  broadcast({ type: 'quizStatus', quizId: quiz.quizId, quizName: quiz.quizName, quizExists: true });
+  res.json({ message: 'Quiz assigned successfully!' });
+});
+
 app.get('/quizzes', async (req, res) => {
   const email = req.query.email;
   if (email) {
@@ -170,6 +233,7 @@ app.post(
         images,
         answerKey: JSON.parse(answerKey),
         createdBy,
+        isAssigned: false
       };
 
       quizzes.push(quiz);
@@ -240,11 +304,9 @@ app.get('/download-quiz-zip/:quizId', async (req, res) => {
     res.attachment(`quiz_${quizId}.zip`);
     zip.pipe(res);
 
-    // Add quizzes.json to key folder
     const quizJson = JSON.stringify(quiz, null, 2);
     zip.append(quizJson, { name: 'key/quizzes.json' });
 
-    // Add audio files
     for (let i = 1; i <= 4; i++) {
       const audioPath = quiz.audio[`part${i}`];
       if (audioPath) {
@@ -255,7 +317,6 @@ app.get('/download-quiz-zip/:quizId', async (req, res) => {
       }
     }
 
-    // Add image files
     for (let i = 1; i <= 7; i++) {
       const images = quiz.images[`part${i}`] || [];
       for (let imagePath of images) {
@@ -286,7 +347,6 @@ app.post(
       const extractPath = path.join(__dirname, 'temp', uuidv4());
       await fs.mkdir(extractPath, { recursive: true });
 
-      // Extract ZIP
       await new Promise((resolve, reject) => {
         fsSync.createReadStream(zipPath)
           .pipe(unzipper.Extract({ path: extractPath }))
@@ -294,7 +354,6 @@ app.post(
           .on('error', reject);
       });
 
-      // Read quizzes.json
       const quizzesJsonPath = path.join(extractPath, 'key', 'quizzes.json');
       if (!fsSync.existsSync(quizzesJsonPath)) {
         await fs.rm(extractPath, { recursive: true, force: true });
@@ -306,7 +365,6 @@ app.post(
       const newQuizId = uuidv4();
       quizData.quizId = newQuizId;
 
-      // Process audio files
       for (let i = 1; i <= 4; i++) {
         const audioSrcPath = path.join(extractPath, `part${i}`, 'audio', `part${i}.mp3`);
         if (fsSync.existsSync(audioSrcPath)) {
@@ -318,7 +376,6 @@ app.post(
         }
       }
 
-      // Process image files
       for (let i = 1; i <= 7; i++) {
         const imagesDir = path.join(extractPath, `part${i}`, 'images');
         quizData.images[`part${i}`] = [];
@@ -333,11 +390,9 @@ app.post(
         }
       }
 
-      // Add quiz to quizzes array
       quizzes.push(quizData);
       await saveQuizzes();
 
-      // Cleanup
       await fs.rm(extractPath, { recursive: true, force: true });
       await fs.unlink(zipPath);
 
@@ -359,8 +414,13 @@ app.post('/select-quiz', (req, res) => {
     return res.status(404).json({ message: 'Quiz not found' });
   }
   currentQuiz = quiz;
-  broadcast({ type: 'quizStatus', quizExists: true });
-  res.json({ message: 'Quiz selected successfully!' });
+  broadcast({
+    type: 'quizStatus',
+    quizId: quiz.quizId,
+    quizName: quiz.quizName,
+    quizExists: true
+  });
+  res.json({ message: 'Quiz selected successfully!', quizName: quiz.quizName });
 });
 
 app.get('/quiz-audio', (req, res) => {
@@ -399,57 +459,8 @@ app.post('/submit', async (req, res) => {
     }
   }
 
-  const result = { username, score, timestamp: Date.now() };
-  results.push(result);
-  await saveResults();
-  broadcast({ type: 'submittedCount', count: results.length });
-  res.json({ score });
-});
-
-// ... (giữ nguyên phần đầu của server.js đến trước app.get('/quizzes'))
-
-// Thêm endpoint /direct-results
-app.get('/direct-results', async (req, res) => {
-  try {
-    if (!currentQuiz) {
-      return res.status(200).json([]); // Trả về mảng rỗng nếu không có quiz
-    }
-    // Lọc kết quả theo currentQuiz.quizId
-    const quizResults = results.filter(r => r.quizId === currentQuiz.quizId).map(result => ({
-      username: result.username,
-      score: result.score,
-      submittedAt: new Date(result.timestamp)
-    }));
-    res.status(200).json(quizResults);
-  } catch (err) {
-    console.error('Error fetching direct results:', err);
-    res.status(500).json({ message: 'Error fetching direct results' });
-  }
-});
-
-// Sửa endpoint /submit
-app.post('/submit', async (req, res) => {
-  if (!currentQuiz) {
-    return res.status(404).json({ message: 'No quiz selected' });
-  }
-
-  const { username, answers } = req.body;
-  if (!username || !answers) {
-    return res.status(400).json({ message: 'Username and answers are required' });
-  }
-  let score = 0;
-  const answerKey = currentQuiz.answerKey;
-
-  for (let i = 1; i <= 200; i++) {
-    const userAnswer = answers[`q${i}`];
-    const correctAnswer = answerKey[`q${i}`];
-    if (userAnswer && userAnswer === correctAnswer) {
-      score++;
-    }
-  }
-
   const result = {
-    quizId: currentQuiz.quizId, // Thêm quizId để lọc kết quả
+    quizId: currentQuiz.quizId,
     username,
     score,
     timestamp: Date.now()
@@ -457,7 +468,6 @@ app.post('/submit', async (req, res) => {
   results.push(result);
   await saveResults();
 
-  // Gửi tin nhắn WebSocket loại 'submitted'
   const quizResults = results.filter(r => r.quizId === currentQuiz.quizId);
   broadcast({
     type: 'submitted',
@@ -472,31 +482,91 @@ app.post('/submit', async (req, res) => {
   res.json({ score });
 });
 
-// Sửa endpoint /select-quiz để lưu quizId
-app.post('/select-quiz', (req, res) => {
-  const { quizId } = req.body;
-  if (!quizId) {
-    return res.status(400).json({ message: 'Quiz ID is required' });
-  }
-  const quiz = quizzes.find((q) => q.quizId === quizId);
-  if (!quiz) {
-    return res.status(404).json({ message: 'Quiz not found' });
-  }
-  currentQuiz = quiz;
-  broadcast({
-    type: 'quizStatus',
-    quizId: quiz.quizId,
-    quizName: quiz.quizName,
-    quizExists: true
-  });
-  res.json({ message: 'Quiz selected successfully!', quizName: quiz.quizName });
+app.get('/results', (req, res) => {
+  res.json(results);
 });
 
-// Cập nhật WebSocket
+app.post('/reset', async (req, res) => {
+  results = [];
+  await saveResults();
+  broadcast({ type: 'submitted', count: 0, results: [] });
+  res.json({ message: 'Quiz reset successfully!' });
+});
+
+app.get('/download-quizzes', (req, res) => {
+  res.setHeader('Content-Disposition', 'attachment; filename=quizzes.json');
+  res.setHeader('Content-Type', 'application/json');
+  res.send(JSON.stringify(quizzes, null, 2));
+});
+
+app.post(
+  '/upload-quizzes',
+  upload.fields([{ name: 'quizzes', maxCount: 1 }]),
+  async (req, res) => {
+    try {
+      if (!req.files.quizzes) {
+        return res.status(400).json({ message: 'No quizzes.json file uploaded' });
+      }
+      const file = req.files.quizzes[0];
+      const data = await fs.readFile(file.path, 'utf8');
+      const uploadedQuizzes = JSON.parse(data);
+      quizzes = uploadedQuizzes;
+      await saveQuizzes();
+      await fs.unlink(file.path);
+      res.json({ message: 'Quizzes uploaded successfully!' });
+    } catch (err) {
+      console.error('Error uploading quizzes:', err);
+      res.status(500).json({ message: 'Error uploading quizzes' });
+    }
+  }
+);
+
+app.post(
+  '/upload-files',
+  upload.fields([
+    { name: 'audio', maxCount: 100 },
+    { name: 'images', maxCount: 100 },
+  ]),
+  async (req, res) => {
+    try {
+      const audioFiles = req.files.audio || [];
+      const imageFiles = req.files.images || [];
+      const audioPaths = audioFiles.map((file) => `/uploads/audio/${file.filename}`);
+      const imagePaths = imageFiles.map((file) => `/uploads/images/${file.filename}`);
+      res.json({ audio: audioPaths, images: imagePaths });
+    } catch (err) {
+      console.error('Error uploading files:', err);
+      res.status(500).json({ message: 'Error uploading files' });
+    }
+  }
+);
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'), (err) => {
+    if (err) {
+      console.error('Error serving index.html:', err);
+      res.status(500).send('Internal Server Error');
+    }
+  });
+});
+
+function broadcast(message) {
+  clients.forEach((client) => {
+    if (client.readyState === 1) {
+      client.send(JSON.stringify(message));
+    }
+  });
+}
+
+const server = app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
+
+const wss = new WebSocketServer({ server });
+
 wss.on('connection', (ws) => {
   clients.add(ws);
   broadcast({ type: 'participantCount', count: clients.size });
-  // Gửi số bài nộp hiện tại
   if (currentQuiz) {
     const quizResults = results.filter(r => r.quizId === currentQuiz.quizId);
     ws.send(JSON.stringify({
@@ -535,8 +605,6 @@ wss.on('connection', (ws) => {
           });
         }
         broadcast({ type: 'end' });
-      } else if (msg.type === 'submitted') {
-        // Không cần xử lý 'submitted' từ client, vì server đã gửi ở /submit
       } else if (msg.type === 'requestQuizStatus') {
         if (currentQuiz) {
           ws.send(JSON.stringify({
@@ -548,6 +616,10 @@ wss.on('connection', (ws) => {
         } else {
           ws.send(JSON.stringify({ type: 'quizStatus', quizExists: false }));
         }
+      } else if (msg.type === 'login') {
+        // Lưu thông tin user nếu cần
+      } else if (msg.type === 'quizSelected' || msg.type === 'quizAssigned') {
+        // Xử lý các tin nhắn từ client nếu cần
       }
     } catch (err) {
       console.error('Error processing WebSocket message:', err);
@@ -559,5 +631,3 @@ wss.on('connection', (ws) => {
     broadcast({ type: 'participantCount', count: clients.size });
   });
 });
-
-// ... (giữ nguyên các endpoint và phần còn lại của server.js)
