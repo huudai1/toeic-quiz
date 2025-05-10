@@ -64,10 +64,7 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
-});
+const upload = multer({ storage });
 
 async function saveQuizzes() {
   try {
@@ -118,125 +115,115 @@ async function loadResults() {
 loadQuizzes();
 loadResults();
 
-app.get("/quiz-status", async (req, res) => {
+// Endpoint để lấy trạng thái đề thi
+app.get('/quiz-status', async (req, res) => {
   try {
     if (!currentQuiz) {
       return res.status(200).json({ quizId: null, quizName: null });
     }
     res.status(200).json({ quizId: currentQuiz.quizId, quizName: currentQuiz.quizName });
   } catch (err) {
-    console.error("Error fetching quiz status:", err);
-    res.status(500).json({ message: "Error fetching quiz status" });
+    console.error('Error fetching quiz status:', err);
+    res.status(500).json({ message: 'Error fetching quiz status' });
   }
 });
 
-app.get("/direct-results", async (req, res) => {
+// Endpoint để lấy kết quả kiểm tra trực tiếp
+app.get('/direct-results', async (req, res) => {
   try {
     if (!currentQuiz) {
       return res.status(200).json([]);
     }
-    const quizResults = results.filter(r => r.quizId === currentQuiz.quizId);
+    const quizResults = results.filter(r => r.quizId === currentQuiz.quizId).map(result => ({
+      username: result.username,
+      score: result.score,
+      submittedAt: new Date(result.timestamp)
+    }));
     res.status(200).json(quizResults);
   } catch (err) {
-    console.error("Error fetching direct results:", err);
-    res.status(500).json({ message: "Error fetching direct results" });
+    console.error('Error fetching direct results:', err);
+    res.status(500).json({ message: 'Error fetching direct results' });
   }
 });
 
-app.get("/quizzes", async (req, res) => {
+// Endpoint để xóa database
+app.delete('/clear-database', async (req, res) => {
   try {
-    const email = req.query.email;
-    if (email) {
-      const userQuizzes = quizzes.filter(quiz => quiz.createdBy === email);
-      res.json(userQuizzes);
+    quizzes = [];
+    results = [];
+    currentQuiz = null;
+    await saveQuizzes();
+    await saveResults();
+    broadcast({ type: 'quizStatus', quizExists: false });
+    res.status(200).json({ message: 'Database cleared successfully!' });
+  } catch (err) {
+    console.error('Error clearing database:', err);
+    res.status(500).json({ message: 'Error clearing database' });
+  }
+});
+
+// Endpoint để giao bài
+app.post('/assign-quiz', async (req, res) => {
+  const { quizId, timeLimit } = req.body;
+  if (!quizId || !timeLimit) {
+    return res.status(400).json({ message: 'Quiz ID and time limit are required' });
+  }
+  const quiz = quizzes.find((q) => q.quizId === quizId);
+  if (!quiz) {
+    return res.status(404).json({ message: 'Quiz not found' });
+  }
+  quiz.isAssigned = true;
+  await saveQuizzes();
+  broadcast({ type: 'quizStatus', quizId: quiz.quizId, quizName: quiz.quizName, quizExists: true });
+  res.json({ message: 'Quiz assigned successfully!' });
+});
+
+app.get('/quizzes', async (req, res) => {
+  const email = req.query.email;
+  if (email) {
+    res.json(quizzes.filter((quiz) => quiz.createdBy === email));
+  } else {
+    if (!currentQuiz) {
+      res.json([]);
     } else {
-      const availableQuizzes = quizzes.filter(quiz => quiz.isAssigned);
-      res.json(availableQuizzes);
+      res.json([currentQuiz]);
     }
-  } catch (err) {
-    console.error("Error fetching quizzes:", err);
-    res.status(500).json({ message: "Error fetching quizzes" });
-  }
-});
-
-app.get("/quiz-audio", async (req, res) => {
-  try {
-    if (!currentQuiz) {
-      return res.status(400).json({ message: "No quiz selected" });
-    }
-    const part = req.query.part;
-    const audioPath = currentQuiz.audio[part];
-    if (!audioPath) {
-      return res.status(404).json({ message: `No audio for ${part}` });
-    }
-    res.json({ audio: audioPath });
-  } catch (err) {
-    console.error("Error fetching audio:", err);
-    res.status(500).json({ message: "Error fetching audio" });
-  }
-});
-
-app.get("/images", async (req, res) => {
-  try {
-    if (!currentQuiz) {
-      return res.status(400).json({ message: "No quiz selected" });
-    }
-    const part = req.query.part;
-    const images = currentQuiz.images[`part${part}`] || [];
-    res.json(images);
-  } catch (err) {
-    console.error("Error fetching images:", err);
-    res.status(500).json({ message: "Error fetching images" });
   }
 });
 
 app.post(
-  "/save-quiz",
+  '/save-quiz',
   upload.fields([
-    { name: "audio-part1", maxCount: 1 },
-    { name: "audio-part2", maxCount: 1 },
-    { name: "audio-part3", maxCount: 1 },
-    { name: "audio-part4", maxCount: 1 },
-    { name: "images-part1", maxCount: 100 },
-    { name: "images-part2", maxCount: 100 },
-    { name: "images-part3", maxCount: 100 },
-    { name: "images-part4", maxCount: 100 },
-    { name: "images-part5", maxCount: 100 },
-    { name: "images-part6", maxCount: 100 },
-    { name: "images-part7", maxCount: 100 },
+    { name: 'audio-part1', maxCount: 1 },
+    { name: 'audio-part2', maxCount: 1 },
+    { name: 'audio-part3', maxCount: 1 },
+    { name: 'audio-part4', maxCount: 1 },
+    { name: 'images-part1' },
+    { name: 'images-part2' },
+    { name: 'images-part3' },
+    { name: 'images-part4' },
+    { name: 'images-part5' },
+    { name: 'images-part6' },
+    { name: 'images-part7' },
   ]),
   async (req, res) => {
     try {
       const { quizName, answerKey, createdBy } = req.body;
       if (!quizName || !answerKey || !createdBy) {
-        return res.status(400).json({ message: "Thiếu các trường bắt buộc: quizName, answerKey, hoặc createdBy" });
+        return res.status(400).json({ message: "Missing required fields" });
       }
-
-      let parsedAnswerKey;
-      try {
-        parsedAnswerKey = JSON.parse(answerKey);
-        if (Object.keys(parsedAnswerKey).length !== 200) {
-          return res.status(400).json({ message: "Answer key phải có đúng 200 câu trả lời" });
-        }
-      } catch (err) {
-        return res.status(400).json({ message: "Answer key không hợp lệ" });
-      }
-
       const audioPaths = {};
       for (let i = 1; i <= 4; i++) {
-        if (!req.files[`audio-part${i}`]) {
-          return res.status(400).json({ message: `Thiếu file audio cho Part ${i}` });
+        if (req.files[`audio-part${i}`]) {
+          const audioFile = req.files[`audio-part${i}`][0];
+          audioPaths[`part${i}`] = `/uploads/audio/${audioFile.filename}`;
         }
-        const audioFile = req.files[`audio-part${i}`][0];
-        audioPaths[`part${i}`] = `/uploads/audio/${audioFile.filename}`;
       }
 
       const images = {};
       for (let i = 1; i <= 7; i++) {
-        if (!req.files[`images-part${i}`] || req.files[`images-part${i}`].length === 0) {
-          return res.status(400).json({ message: `Thiếu ảnh cho Part ${i}` });
-        }
-        images[`part${i}`] = req.files[`images-part${i}`].map((file) => `/uploads/images/${file.filename}`);
+        const partImages = req.files[`images-part${i}`] || [];
+        images[`part${i}`] = partImages.map((file) => `/uploads/images/${file.filename}`);
       }
 
       const quiz = {
@@ -244,329 +231,327 @@ app.post(
         quizName,
         audio: audioPaths,
         images,
-        answerKey: parsedAnswerKey,
+        answerKey: JSON.parse(answerKey),
         createdBy,
-        isAssigned: false,
+        isAssigned: false
       };
 
       quizzes.push(quiz);
       await saveQuizzes();
-
-      res.status(200).json({ message: "Đã lưu đề thi thành công!" });
+      res.json({ message: 'Quiz saved successfully!' });
     } catch (err) {
-      console.error("Error saving quiz:", err);
-      res.status(500).json({ message: "Lỗi khi lưu đề thi: " + err.message });
+      console.error('Error saving quiz:', err);
+      res.status(500).json({ message: 'Error saving quiz' });
     }
   }
 );
 
-app.post("/upload-quizzes", upload.single("quizzes"), async (req, res) => {
-  try {
-    const filePath = req.file.path;
-    const data = await fs.readFile(filePath, "utf8");
-    const uploadedQuizzes = JSON.parse(data);
-
-    for (const quiz of uploadedQuizzes) {
-      if (!quiz.quizId || !quiz.quizName || !quiz.audio || !quiz.images || !quiz.answerKey || !quiz.createdBy) {
-        return res.status(400).json({ message: "Invalid quiz format" });
-      }
-      quizzes.push({ ...quiz, quizId: uuidv4() });
-    }
-
-    await saveQuizzes();
-    await fs.unlink(filePath);
-    res.json({ message: "Quizzes uploaded successfully" });
-  } catch (err) {
-    console.error("Error uploading quizzes:", err);
-    res.status(500).json({ message: "Error uploading quizzes: " + err.message });
-  }
-});
-
-app.post("/upload-quizzes-zip", upload.single("quizzes"), async (req, res) => {
-  try {
-    const zipPath = req.file.path;
-    const extractPath = path.join(__dirname, "temp", uuidv4());
-    await fs.mkdir(extractPath, { recursive: true });
-
-    await new Promise((resolve, reject) => {
-      fsSync.createReadStream(zipPath)
-        .pipe(unzipper.Extract({ path: extractPath }))
-        .on("close", resolve)
-        .on("error", reject);
-    });
-
-    const quizJsonPath = path.join(extractPath, "quiz.json");
-    const quizData = JSON.parse(await fs.readFile(quizJsonPath, "utf8"));
-
-    const audioPaths = {};
-    for (let i = 1; i <= 4; i++) {
-      const audioFile = path.join(extractPath, `audio-part${i}${path.extname(quizData.audio[`part${i}`])}`);
-      if (fsSync.existsSync(audioFile)) {
-        const newPath = path.join(__dirname, "public/uploads/audio", `${uuidv4()}${path.extname(audioFile)}`);
-        await fs.rename(audioFile, newPath);
-        audioPaths[`part${i}`] = `/uploads/audio/${path.basename(newPath)}`;
-      } else {
-        return res.status(400).json({ message: `Missing audio file for part ${i}` });
-      }
-    }
-
-    const images = {};
-    for (let i = 1; i <= 7; i++) {
-      images[`part${i}`] = [];
-      for (const img of quizData.images[`part${i}`]) {
-        const imgPath = path.join(extractPath, path.basename(img));
-        if (fsSync.existsSync(imgPath)) {
-          const newPath = path.join(__dirname, "public/uploads/images", `${uuidv4()}${path.extname(img)}`);
-          await fs.rename(imgPath, newPath);
-          images[`part${i}`].push(`/uploads/images/${path.basename(newPath)}`);
-        } else {
-          return res.status(400).json({ message: `Missing image for part ${i}` });
-        }
-      }
-    }
-
-    const quiz = {
-      quizId: uuidv4(),
-      quizName: quizData.quizName,
-      audio: audioPaths,
-      images,
-      answerKey: quizData.answerKey,
-      createdBy: quizData.createdBy,
-      isAssigned: false,
-    };
-
-    quizzes.push(quiz);
-    await saveQuizzes();
-    await fs.unlink(zipPath);
-    await fs.rm(extractPath, { recursive: true, force: true });
-
-    res.json({ message: "Quiz ZIP uploaded successfully" });
-  } catch (err) {
-    console.error("Error uploading quiz ZIP:", err);
-    res.status(500).json({ message: "Error uploading quiz ZIP: " + err.message });
-  }
-});
-
-app.get("/download-quiz-zip/:quizId", async (req, res) => {
-  try {
-    const quiz = quizzes.find(q => q.quizId === req.params.quizId);
-    if (!quiz) {
-      return res.status(404).json({ message: "Quiz not found" });
-    }
-
-    const archive = archiver("zip");
-    res.attachment(`quiz_${quiz.quizId}.zip`);
-    archive.pipe(res);
-
-    const quizJson = {
-      quizName: quiz.quizName,
-      audio: quiz.audio,
-      images: quiz.images,
-      answerKey: quiz.answerKey,
-      createdBy: quiz.createdBy,
-    };
-    archive.append(JSON.stringify(quizJson, null, 2), { name: "quiz.json" });
-
-    for (let i = 1; i <= 4; i++) {
-      const audioPath = path.join(__dirname, "public", quiz.audio[`part${i}`].slice(1));
-      if (fsSync.existsSync(audioPath)) {
-        archive.file(audioPath, { name: `audio-part${i}${path.extname(audioPath)}` });
-      }
-    }
-
-    for (let i = 1; i <= 7; i++) {
-      for (const img of quiz.images[`part${i}`]) {
-        const imgPath = path.join(__dirname, "public", img.slice(1));
-        if (fsSync.existsSync(imgPath)) {
-          archive.file(imgPath, { name: path.basename(img) });
-        }
-      }
-    }
-
-    await archive.finalize();
-  } catch (err) {
-    console.error("Error downloading quiz ZIP:", err);
-    res.status(500).json({ message: "Error downloading quiz ZIP: " + err.message });
-  }
-});
-
-app.delete("/clear-database", async (req, res) => {
-  try {
-    quizzes = [];
-    results = [];
-    currentQuiz = null;
-    await saveQuizzes();
-    await saveResults();
-    broadcast({ type: "quizStatus", quizId: null, quizName: null });
-    res.json({ message: "Database cleared successfully" });
-  } catch (err) {
-    console.error("Error clearing database:", err);
-    res.status(500).json({ message: "Error clearing database" });
-  }
-});
-
-app.delete("/delete-quiz/:quizId", async (req, res) => {
+app.delete('/delete-quiz/:quizId', async (req, res) => {
   try {
     const quizId = req.params.quizId;
-    const quiz = quizzes.find(q => q.quizId === quizId);
-    if (!quiz) {
-      return res.status(404).json({ message: "Quiz not found" });
+    const quizIndex = quizzes.findIndex((quiz) => quiz.quizId === quizId);
+    if (quizIndex === -1) {
+      return res.status(404).json({ message: 'Quiz not found' });
     }
 
+    const quiz = quizzes[quizIndex];
+    for (let part in quiz.audio) {
+      const audioPath = path.join(__dirname, 'public', quiz.audio[part].substring(1));
+      try {
+        if (fsSync.existsSync(audioPath)) {
+          await fs.unlink(audioPath);
+        }
+      } catch (err) {
+        console.error(`Error deleting audio file ${audioPath}:`, err);
+      }
+    }
+
+    for (let part in quiz.images) {
+      for (let imagePath of quiz.images[part]) {
+        const fullPath = path.join(__dirname, 'public', imagePath.substring(1));
+        try {
+          if (fsSync.existsSync(fullPath)) {
+            await fs.unlink(fullPath);
+          }
+        } catch (err) {
+          console.error(`Error deleting image file ${fullPath}:`, err);
+        }
+      }
+    }
+
+    quizzes.splice(quizIndex, 1);
+    if (currentQuiz && currentQuiz.quizId === quizId) {
+      currentQuiz = null;
+      broadcast({ type: 'quizStatus', quizExists: false });
+    }
+    await saveQuizzes();
+    res.json({ message: 'Quiz deleted successfully!' });
+  } catch (err) {
+    console.error('Error deleting quiz:', err);
+    res.status(500).json({ message: 'Error deleting quiz' });
+  }
+});
+
+app.get('/download-quiz-zip/:quizId', async (req, res) => {
+  try {
+    const quizId = req.params.quizId;
+    const quiz = quizzes.find((q) => q.quizId === quizId);
+    if (!quiz) {
+      return res.status(404).json({ message: 'Quiz not found' });
+    }
+
+    const zip = archiver('zip', { zlib: { level: 9 } });
+    res.attachment(`quiz_${quizId}.zip`);
+    zip.pipe(res);
+
+    const quizJson = JSON.stringify(quiz, null, 2);
+    zip.append(quizJson, { name: 'key/quizzes.json' });
+
     for (let i = 1; i <= 4; i++) {
-      const audioPath = path.join(__dirname, "public", quiz.audio[`part${i}`].slice(1));
-      if (fsSync.existsSync(audioPath)) {
-        await fs.unlink(audioPath);
+      const audioPath = quiz.audio[`part${i}`];
+      if (audioPath) {
+        const fullPath = path.join(__dirname, 'public', audioPath.substring(1));
+        if (fsSync.existsSync(fullPath)) {
+          zip.file(fullPath, { name: `part${i}/audio/part${i}.mp3` });
+        }
       }
     }
 
     for (let i = 1; i <= 7; i++) {
-      for (const img of quiz.images[`part${i}`]) {
-        const imgPath = path.join(__dirname, "public", img.slice(1));
-        if (fsSync.existsSync(imgPath)) {
-          await fs.unlink(imgPath);
+      const images = quiz.images[`part${i}`] || [];
+      for (let imagePath of images) {
+        const fullPath = path.join(__dirname, 'public', imagePath.substring(1));
+        if (fsSync.existsSync(fullPath)) {
+          zip.file(fullPath, { name: `part${i}/images/${path.basename(imagePath)}` });
         }
       }
     }
 
-    quizzes = quizzes.filter(q => q.quizId !== quizId);
-    if (currentQuiz && currentQuiz.quizId === quizId) {
-      currentQuiz = null;
-      broadcast({ type: "quizStatus", quizId: null, quizName: null });
-    }
-    await saveQuizzes();
-    res.json({ message: "Quiz deleted successfully" });
+    await zip.finalize();
   } catch (err) {
-    console.error("Error deleting quiz:", err);
-    res.status(500).json({ message: "Error deleting quiz" });
+    console.error('Error creating ZIP:', err);
+    res.status(500).json({ message: 'Error creating ZIP file' });
   }
 });
 
-app.post("/select-quiz", async (req, res) => {
-  try {
-    const { quizId } = req.body;
-    if (!quizId) {
-      return res.status(400).json({ message: "Quiz ID is required" });
-    }
-    const quiz = quizzes.find(q => q.quizId === quizId);
-    if (!quiz) {
-      return res.status(404).json({ message: "Quiz not found" });
-    }
-    currentQuiz = quiz;
-    broadcast({ type: "quizStatus", quizId: quiz.quizId, quizName: quiz.quizName });
-    res.json({ message: "Quiz selected successfully", quizName: quiz.quizName });
-  } catch (err) {
-    console.error("Error selecting quiz:", err);
-    res.status(500).json({ message: "Error selecting quiz" });
-  }
-});
-
-app.post("/assign-quiz", async (req, res) => {
-  try {
-    const { quizId, timeLimit } = req.body;
-    if (!quizId || !timeLimit) {
-      return res.status(400).json({ message: "Quiz ID and time limit are required" });
-    }
-    const quiz = quizzes.find(q => q.quizId === quizId);
-    if (!quiz) {
-      return res.status(404).json({ message: "Quiz not found" });
-    }
-    quiz.isAssigned = true;
-    quiz.timeLimit = timeLimit;
-    currentQuiz = quiz;
-    await saveQuizzes();
-    broadcast({ type: "quizStatus", quizId: quiz.quizId, quizName: quiz.quizName });
-    res.json({ message: "Quiz assigned successfully" });
-  } catch (err) {
-    console.error("Error assigning quiz:", err);
-    res.status(500).json({ message: "Error assigning quiz" });
-  }
-});
-
-app.post("/submit", async (req, res) => {
-  try {
-    const { username, answers } = req.body;
-    if (!username || !answers || !currentQuiz) {
-      return res.status(400).json({ message: "Missing required fields or no quiz selected" });
-    }
-
-    let score = 0;
-    for (let i = 1; i <= 200; i++) {
-      const q = `q${i}`;
-      if (answers[q] === currentQuiz.answerKey[q]) {
-        score++;
+app.post(
+  '/upload-quizzes-zip',
+  upload.single('quizzes'),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No ZIP file uploaded' });
       }
-    }
 
-    const result = {
-      id: uuidv4(),
-      quizId: currentQuiz.quizId,
-      username,
-      score,
-      answers,
-      submittedAt: new Date().toISOString(),
-    };
+      const zipPath = req.file.path;
+      const extractPath = path.join(__dirname, 'temp', uuidv4());
+      await fs.mkdir(extractPath, { recursive: true });
 
-    results.push(result);
-    await saveResults();
-
-    broadcast({
-      type: "submittedCount",
-      count: results.filter(r => r.quizId === currentQuiz.quizId).length,
-      results: results.filter(r => r.quizId === currentQuiz.quizId),
-    });
-
-    res.json({ score });
-  } catch (err) {
-    console.error("Error submitting quiz:", err);
-    res.status(500).json({ message: "Error submitting quiz" });
-  }
-});
-
-app.get("/history", async (req, res) => {
-  try {
-    res.json(results);
-  } catch (err) {
-    console.error("Error fetching history:", err);
-    res.status(500).json({ message: "Error fetching history" });
-  }
-});
-
-app.post("/delete-results", async (req, res) => {
-  try {
-    const { ids } = req.body;
-    if (!ids || !Array.isArray(ids)) {
-      return res.status(400).json({ message: "Invalid IDs" });
-    }
-    results = results.filter(r => !ids.includes(r.id));
-    await saveResults();
-    res.json({ message: "Results deleted successfully" });
-  } catch (err) {
-    console.error("Error deleting results:", err);
-    res.status(500).json({ message: "Error deleting results" });
-  }
-});
-
-app.post("/logout", async (req, res) => {
-  try {
-    const { username } = req.body;
-    if (username) {
-      clients.forEach(client => {
-        if (client.username === username) {
-          clients.delete(client);
-        }
+      await new Promise((resolve, reject) => {
+        fsSync.createReadStream(zipPath)
+          .pipe(unzipper.Extract({ path: extractPath }))
+          .on('close', resolve)
+          .on('error', reject);
       });
-      broadcast({ type: "participantCount", count: clients.size });
+
+      const quizzesJsonPath = path.join(extractPath, 'key', 'quizzes.json');
+      if (!fsSync.existsSync(quizzesJsonPath)) {
+        await fs.rm(extractPath, { recursive: true, force: true });
+        await fs.unlink(zipPath);
+        return res.status(400).json({ message: 'Missing key/quizzes.json in ZIP' });
+      }
+
+      const quizData = JSON.parse(await fs.readFile(quizzesJsonPath, 'utf8'));
+      const newQuizId = uuidv4();
+      quizData.quizId = newQuizId;
+
+      for (let i = 1; i <= 4; i++) {
+        const audioSrcPath = path.join(extractPath, `part${i}`, 'audio', `part${i}.mp3`);
+        if (fsSync.existsSync(audioSrcPath)) {
+          const audioDestPath = path.join(__dirname, 'public/uploads/audio', `${newQuizId}_part${i}.mp3`);
+          await fs.copyFile(audioSrcPath, audioDestPath);
+          quizData.audio[`part${i}`] = `/uploads/audio/${path.basename(audioDestPath)}`;
+        } else {
+          delete quizData.audio[`part${i}`];
+        }
+      }
+
+      for (let i = 1; i <= 7; i++) {
+        const imagesDir = path.join(extractPath, `part${i}`, 'images');
+        quizData.images[`part${i}`] = [];
+        if (fsSync.existsSync(imagesDir)) {
+          const imageFiles = await fs.readdir(imagesDir);
+          for (const imageFile of imageFiles) {
+            const imageSrcPath = path.join(imagesDir, imageFile);
+            const imageDestPath = path.join(__dirname, 'public/uploads/images', `${newQuizId}_part${i}_${imageFile}`);
+            await fs.copyFile(imageSrcPath, imageDestPath);
+            quizData.images[`part${i}`].push(`/uploads/images/${path.basename(imageDestPath)}`);
+          }
+        }
+      }
+
+      quizzes.push(quizData);
+      await saveQuizzes();
+
+      await fs.rm(extractPath, { recursive: true, force: true });
+      await fs.unlink(zipPath);
+
+      res.json({ message: 'Quiz uploaded successfully!' });
+    } catch (err) {
+      console.error('Error uploading ZIP:', err);
+      res.status(500).json({ message: 'Error uploading ZIP file' });
     }
-    res.json({ message: "Logged out successfully" });
-  } catch (err) {
-    console.error("Error during logout:", err);
-    res.status(500).json({ message: "Error during logout" });
   }
+);
+
+app.post('/select-quiz', (req, res) => {
+  const { quizId } = req.body;
+  if (!quizId) {
+    return res.status(400).json({ message: 'Quiz ID is required' });
+  }
+  const quiz = quizzes.find((q) => q.quizId === quizId);
+  if (!quiz) {
+    return res.status(404).json({ message: 'Quiz not found' });
+  }
+  currentQuiz = quiz;
+  broadcast({
+    type: 'quizStatus',
+    quizId: quiz.quizId,
+    quizName: quiz.quizName,
+    quizExists: true
+  });
+  res.json({ message: 'Quiz selected successfully!', quizName: quiz.quizName });
+});
+
+app.get('/quiz-audio', (req, res) => {
+  if (!currentQuiz || !currentQuiz.audio) {
+    return res.status(404).json({ message: 'No audio available' });
+  }
+  const part = req.query.part || 'part1';
+  res.json({ audio: currentQuiz.audio[part] });
+});
+
+app.get('/images', (req, res) => {
+  if (!currentQuiz) {
+    return res.status(404).json({ message: 'No quiz selected' });
+  }
+  const part = req.query.part || 1;
+  res.json(currentQuiz.images[`part${part}`] || []);
+});
+
+app.post('/submit', async (req, res) => {
+  if (!currentQuiz) {
+    return res.status(404).json({ message: 'No quiz selected' });
+  }
+
+  const { username, answers } = req.body;
+  if (!username || !answers) {
+    return res.status(400).json({ message: 'Username and answers are required' });
+  }
+  let score = 0;
+  const answerKey = currentQuiz.answerKey;
+
+  for (let i = 1; i <= 200; i++) {
+    const userAnswer = answers[`q${i}`];
+    const correctAnswer = answerKey[`q${i}`];
+    if (userAnswer && userAnswer === correctAnswer) {
+      score++;
+    }
+  }
+
+  const result = {
+    quizId: currentQuiz.quizId,
+    username,
+    score,
+    timestamp: Date.now()
+  };
+  results.push(result);
+  await saveResults();
+
+  const quizResults = results.filter(r => r.quizId === currentQuiz.quizId);
+  broadcast({
+    type: 'submitted',
+    count: quizResults.length,
+    results: quizResults.map(r => ({
+      username: r.username,
+      score: r.score,
+      submittedAt: new Date(r.timestamp)
+    }))
+  });
+
+  res.json({ score });
+});
+
+app.get('/results', (req, res) => {
+  res.json(results);
+});
+
+app.post('/reset', async (req, res) => {
+  results = [];
+  await saveResults();
+  broadcast({ type: 'submitted', count: 0, results: [] });
+  res.json({ message: 'Quiz reset successfully!' });
+});
+
+app.get('/download-quizzes', (req, res) => {
+  res.setHeader('Content-Disposition', 'attachment; filename=quizzes.json');
+  res.setHeader('Content-Type', 'application/json');
+  res.send(JSON.stringify(quizzes, null, 2));
+});
+
+app.post(
+  '/upload-quizzes',
+  upload.fields([{ name: 'quizzes', maxCount: 1 }]),
+  async (req, res) => {
+    try {
+      if (!req.files.quizzes) {
+        return res.status(400).json({ message: 'No quizzes.json file uploaded' });
+      }
+      const file = req.files.quizzes[0];
+      const data = await fs.readFile(file.path, 'utf8');
+      const uploadedQuizzes = JSON.parse(data);
+      quizzes = uploadedQuizzes;
+      await saveQuizzes();
+      await fs.unlink(file.path);
+      res.json({ message: 'Quizzes uploaded successfully!' });
+    } catch (err) {
+      console.error('Error uploading quizzes:', err);
+      res.status(500).json({ message: 'Error uploading quizzes' });
+    }
+  }
+);
+
+app.post(
+  '/upload-files',
+  upload.fields([
+    { name: 'audio', maxCount: 100 },
+    { name: 'images', maxCount: 100 },
+  ]),
+  async (req, res) => {
+    try {
+      const audioFiles = req.files.audio || [];
+      const imageFiles = req.files.images || [];
+      const audioPaths = audioFiles.map((file) => `/uploads/audio/${file.filename}`);
+      const imagePaths = imageFiles.map((file) => `/uploads/images/${file.filename}`);
+      res.json({ audio: audioPaths, images: imagePaths });
+    } catch (err) {
+      console.error('Error uploading files:', err);
+      res.status(500).json({ message: 'Error uploading files' });
+    }
+  }
+);
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'), (err) => {
+    if (err) {
+      console.error('Error serving index.html:', err);
+      res.status(500).send('Internal Server Error');
+    }
+  });
 });
 
 function broadcast(message) {
-  clients.forEach(client => {
+  clients.forEach((client) => {
     if (client.readyState === 1) {
       client.send(JSON.stringify(message));
     }
@@ -579,66 +564,70 @@ const server = app.listen(port, () => {
 
 const wss = new WebSocketServer({ server });
 
-wss.on("connection", (ws) => {
+wss.on('connection', (ws) => {
   clients.add(ws);
-  broadcast({ type: "participantCount", count: clients.size });
+  broadcast({ type: 'participantCount', count: clients.size });
+  if (currentQuiz) {
+    const quizResults = results.filter(r => r.quizId === currentQuiz.quizId);
+    ws.send(JSON.stringify({
+      type: 'submitted',
+      count: quizResults.length,
+      results: quizResults.map(r => ({
+        username: r.username,
+        score: r.score,
+        submittedAt: new Date(r.timestamp)
+      }))
+    }));
+    ws.send(JSON.stringify({
+      type: 'quizStatus',
+      quizId: currentQuiz.quizId,
+      quizName: currentQuiz.quizName,
+      quizExists: true
+    }));
+  }
 
-  ws.on("message", (message) => {
+  ws.on('message', (message) => {
     try {
-      const data = JSON.parse(message);
-      if (data.type === "login" && data.username) {
-        ws.username = data.username;
-      } else if (data.type === "requestQuizStatus") {
-        ws.send(JSON.stringify({
-          type: "quizStatus",
-          quizId: currentQuiz ? currentQuiz.quizId : null,
-          quizName: currentQuiz ? currentQuiz.quizName : null,
-        }));
-        ws.send(JSON.stringify({
-          type: "participantCount",
-          count: clients.size,
-        }));
+      const msg = JSON.parse(message);
+      if (msg.type === 'start') {
+        broadcast({ type: 'start', timeLimit: msg.timeLimit });
+      } else if (msg.type === 'end') {
+        if (currentQuiz) {
+          const quizResults = results.filter(r => r.quizId === currentQuiz.quizId);
+          broadcast({
+            type: 'submitted',
+            count: quizResults.length,
+            results: quizResults.map(r => ({
+              username: r.username,
+              score: r.score,
+              submittedAt: new Date(r.timestamp)
+            }))
+          });
+        }
+        broadcast({ type: 'end' });
+      } else if (msg.type === 'requestQuizStatus') {
         if (currentQuiz) {
           ws.send(JSON.stringify({
-            type: "submittedCount",
-            count: results.filter(r => r.quizId === currentQuiz.quizId).length,
-            results: results.filter(r => r.quizId === currentQuiz.quizId),
+            type: 'quizStatus',
+            quizId: currentQuiz.quizId,
+            quizName: currentQuiz.quizName,
+            quizExists: true
           }));
+        } else {
+          ws.send(JSON.stringify({ type: 'quizStatus', quizExists: false }));
         }
-      } else if (data.type === "quizSelected") {
-        const quiz = quizzes.find(q => q.quizId === data.quizId);
-        if (quiz) {
-          currentQuiz = quiz;
-          broadcast({ type: "quizStatus", quizId: quiz.quizId, quizName: quiz.quizName });
-        }
-      } else if (data.type === "quizAssigned") {
-        const quiz = quizzes.find(q => q.quizId === data.quizId);
-        if (quiz) {
-          quiz.isAssigned = true;
-          quiz.timeLimit = data.timeLimit;
-          currentQuiz = quiz;
-          saveQuizzes();
-          broadcast({ type: "quizStatus", quizId: quiz.quizId, quizName: quiz.quizName });
-        }
-      } else if (data.type === "start") {
-        broadcast({ type: "start", timeLimit: data.timeLimit });
-      } else if (data.type === "end") {
-        broadcast({ type: "end" });
-      } else if (data.type === "submitted") {
-        broadcast({
-          type: "submittedCount",
-          count: results.filter(r => r.quizId === currentQuiz.quizId).length,
-          results: results.filter(r => r.quizId === currentQuiz.quizId),
-        });
+      } else if (msg.type === 'login') {
+        // Lưu thông tin user nếu cần
+      } else if (msg.type === 'quizSelected' || msg.type === 'quizAssigned') {
+        // Xử lý các tin nhắn từ client nếu cần
       }
     } catch (err) {
-      console.error("Error handling WebSocket message:", err);
-      ws.send(JSON.stringify({ type: "error", message: "Invalid message format" }));
+      console.error('Error processing WebSocket message:', err);
     }
   });
 
-  ws.on("close", () => {
+  ws.on('close', () => {
     clients.delete(ws);
-    broadcast({ type: "participantCount", count: clients.size });
+    broadcast({ type: 'participantCount', count: clients.size });
   });
 });

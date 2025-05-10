@@ -11,11 +11,11 @@
 <body class="bg-gray-100 font-sans">
   <div id="download-notice" class="fixed top-4 right-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 hidden">
     <p class="font-bold">Thông báo</p>
-    <p>Dung lượng có hạn, VUI LÒNG TẢI ĐỀ XUỐNG TRƯỚC KHI THOÁT !</p>
+    <p>Vui lòng tải xuống ứng dụng của chúng tôi để có trải nghiệm tốt nhất!</p>
   </div>
 
   <div id="welcome-screen" class="container mx-auto p-4">
-    <h1 class="text-3xl font-bold mb-4">Quick Quiz</h1>
+    <h1 class="text-3xl font-bold mb-4">Quiz App</h1>
     <p id="notification" class="text-red-500 mb-4"></p>
     <div class="space-y-4">
       <button onclick="showAdminLogin()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Đăng nhập Admin</button>
@@ -127,36 +127,38 @@
 
   <div id="admin-step-audio" class="container mx-auto p-4 hidden admin-step">
     <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 1: Tên và file nghe</h1>
-    <p id="notification" class="text-red-500 mb-4"></p>
+    <p id="notification-audio" class="text-red-500 mb-4"></p>
     <div class="space-y-4">
       <div>
         <label for="quiz-name" class="block text-lg">Tên đề thi:</label>
-        <input id="quiz-name" type="text" class="border p-2 rounded w-full">
+        <input id="quiz-name" type="text" class="border p-2 rounded w-full" placeholder="Nhập tên đề thi" required>
       </div>
       <div>
         <label for="audio-file-part1" class="block text-lg">File nghe Part 1:</label>
-        <input id="audio-file-part1" type="file" accept="audio/*">
+        <input id="audio-file-part1" type="file" accept="audio/*" required>
       </div>
       <div>
         <label for="audio-file-part2" class="block text-lg">File nghe Part 2:</label>
-        <input id="audio-file-part2" type="file" accept="audio/*">
+        <input id="audio-file-part2" type="file" accept="audio/*" required>
       </div>
       <div>
         <label for="audio-file-part3" class="block text-lg">File nghe Part 3:</label>
-        <input id="audio-file-part3" type="file" accept="audio/*">
+        <input id="audio-file-part3" type="file" accept="audio/*" required>
       </div>
       <div>
         <label for="audio-file-part4" class="block text-lg">File nghe Part 4:</label>
-        <input id="audio-file-part4" type="file" accept="audio/*">
+        <input id="audio-file-part4" type="file" accept="audio/*" required>
       </div>
-      <button onclick="nextAdminStep(1)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-      <button onclick="backToQuizList()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      <div class="flex space-x-4">
+        <button onclick="nextAdminStep(1)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+        <button onclick="backToQuizList()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      </div>
     </div>
   </div>
 
   <div id="admin-step-part1" class="container mx-auto p-4 hidden admin-step">
     <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 2: Part 1</h1>
-    <p id="notification" class="text-red-500 mb-4"></p>
+    <p id="notification-part1" class="text-red-500 mb-4"></p>
     <div class="space-y-4">
       <div>
         <label for="images-part1" class="block text-lg">Ảnh Part 1:</label>
@@ -164,16 +166,19 @@
       </div>
       <div>
         <label for="answer-key-part1" class="block text-lg">Đáp án Part 1 (6 đáp án, cách nhau bằng dấu phẩy):</label>
-        <input id="answer-key-part1" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,D,A,B">
+        <input id="answer-key-part1" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,D,A,B" required>
+        <p class="text-sm text-gray-500">Nhập 6 đáp án, mỗi đáp án là A, B, C hoặc D, cách nhau bằng dấu phẩy.</p>
       </div>
-      <button onclick="nextAdminStep(2)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-      <button onclick="prevAdminStep(1)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      <div class="flex space-x-4">
+        <button onclick="nextAdminStep(2)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+        <button onclick="prevAdminStep(1)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      </div>
     </div>
   </div>
 
   <div id="admin-step-part2" class="container mx-auto p-4 hidden admin-step">
     <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 3: Part 2</h1>
-    <p id="notification" class="text-red-500 mb-4"></p>
+    <p id="notification-part2" class="text-red-500 mb-4"></p>
     <div class="space-y-4">
       <div>
         <label for="images-part2" class="block text-lg">Ảnh Part 2:</label>
@@ -181,16 +186,19 @@
       </div>
       <div>
         <label for="answer-key-part2" class="block text-lg">Đáp án Part 2 (25 đáp án, cách nhau bằng dấu phẩy):</label>
-        <input id="answer-key-part2" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,...">
+        <input id="answer-key-part2" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,..." required>
+        <p class="text-sm text-gray-500">Nhập 25 đáp án, mỗi đáp án là A, B, C hoặc D, cách nhau bằng dấu phẩy.</p>
       </div>
-      <button onclick="nextAdminStep(3)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-      <button onclick="prevAdminStep(2)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      <div class="flex space-x-4">
+        <button onclick="nextAdminStep(3)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+        <button onclick="prevAdminStep(2)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      </div>
     </div>
   </div>
 
   <div id="admin-step-part3" class="container mx-auto p-4 hidden admin-step">
     <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 4: Part 3</h1>
-    <p id="notification" class="text-red-500 mb-4"></p>
+    <p id="notification-part3" class="text-red-500 mb-4"></p>
     <div class="space-y-4">
       <div>
         <label for="images-part3" class="block text-lg">Ảnh Part 3:</label>
@@ -198,16 +206,19 @@
       </div>
       <div>
         <label for="answer-key-part3" class="block text-lg">Đáp án Part 3 (39 đáp án, cách nhau bằng dấu phẩy):</label>
-        <input id="answer-key-part3" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,...">
+        <input id="answer-key-part3" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,..." required>
+        <p class="text-sm text-gray-500">Nhập 39 đáp án, mỗi đáp án là A, B, C hoặc D, cách nhau bằng dấu phẩy.</p>
       </div>
-      <button onclick="nextAdminStep(4)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-      <button onclick="prevAdminStep(3)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      <div class="flex space-x-4">
+        <button onclick="nextAdminStep(4)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+        <button onclick="prevAdminStep(3)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      </div>
     </div>
   </div>
 
   <div id="admin-step-part4" class="container mx-auto p-4 hidden admin-step">
     <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 5: Part 4</h1>
-    <p id="notification" class="text-red-500 mb-4"></p>
+    <p id="notification-part4" class="text-red-500 mb-4"></p>
     <div class="space-y-4">
       <div>
         <label for="images-part4" class="block text-lg">Ảnh Part 4:</label>
@@ -215,16 +226,19 @@
       </div>
       <div>
         <label for="answer-key-part4" class="block text-lg">Đáp án Part 4 (30 đáp án, cách nhau bằng dấu phẩy):</label>
-        <input id="answer-key-part4" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,...">
+        <input id="answer-key-part4" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,..." required>
+        <p class="text-sm text-gray-500">Nhập 30 đáp án, mỗi đáp án là A, B, C hoặc D, cách nhau bằng dấu phẩy.</p>
       </div>
-      <button onclick="nextAdminStep(5)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-      <button onclick="prevAdminStep(4)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      <div class="flex space-x-4">
+        <button onclick="nextAdminStep(5)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+        <button onclick="prevAdminStep(4)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      </div>
     </div>
   </div>
 
   <div id="admin-step-part5" class="container mx-auto p-4 hidden admin-step">
     <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 6: Part 5</h1>
-    <p id="notification" class="text-red-500 mb-4"></p>
+    <p id="notification-part5" class="text-red-500 mb-4"></p>
     <div class="space-y-4">
       <div>
         <label for="images-part5" class="block text-lg">Ảnh Part 5:</label>
@@ -232,16 +246,19 @@
       </div>
       <div>
         <label for="answer-key-part5" class="block text-lg">Đáp án Part 5 (30 đáp án, cách nhau bằng dấu phẩy):</label>
-        <input id="answer-key-part5" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,...">
+        <input id="answer-key-part5" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,..." required>
+        <p class="text-sm text-gray-500">Nhập 30 đáp án, mỗi đáp án là A, B, C hoặc D, cách nhau bằng dấu phẩy.</p>
       </div>
-      <button onclick="nextAdminStep(6)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-      <button onclick="prevAdminStep(5)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      <div class="flex space-x-4">
+        <button onclick="nextAdminStep(6)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+        <button onclick="prevAdminStep(5)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      </div>
     </div>
   </div>
 
   <div id="admin-step-part6" class="container mx-auto p-4 hidden admin-step">
     <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 7: Part 6</h1>
-    <p id="notification" class="text-red-500 mb-4"></p>
+    <p id="notification-part6" class="text-red-500 mb-4"></p>
     <div class="space-y-4">
       <div>
         <label for="images-part6" class="block text-lg">Ảnh Part 6:</label>
@@ -249,16 +266,19 @@
       </div>
       <div>
         <label for="answer-key-part6" class="block text-lg">Đáp án Part 6 (16 đáp án, cách nhau bằng dấu phẩy):</label>
-        <input id="answer-key-part6" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,...">
+        <input id="answer-key-part6" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,..." required>
+        <p class="text-sm text-gray-500">Nhập 16 đáp án, mỗi đáp án là A, B, C hoặc D, cách nhau bằng dấu phẩy.</p>
       </div>
-      <button onclick="nextAdminStep(7)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-      <button onclick="prevAdminStep(6)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      <div class="flex space-x-4">
+        <button onclick="nextAdminStep(7)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+        <button onclick="prevAdminStep(6)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      </div>
     </div>
   </div>
 
   <div id="admin-step-part7" class="container mx-auto p-4 hidden admin-step">
     <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 8: Part 7</h1>
-    <p id="notification" class="text-red-500 mb-4"></p>
+    <p id="notification-part7" class="text-red-500 mb-4"></p>
     <div class="space-y-4">
       <div>
         <label for="images-part7" class="block text-lg">Ảnh Part 7:</label>
@@ -266,10 +286,13 @@
       </div>
       <div>
         <label for="answer-key-part7" class="block text-lg">Đáp án Part 7 (54 đáp án, cách nhau bằng dấu phẩy):</label>
-        <input id="answer-key-part7" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,...">
+        <input id="answer-key-part7" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,..." required>
+        <p class="text-sm text-gray-500">Nhập 54 đáp án, mỗi đáp án là A, B, C hoặc D, cách nhau bằng dấu phẩy.</p>
       </div>
-      <button onclick="saveQuiz()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Lưu đề thi</button>
-      <button onclick="prevAdminStep(7)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      <div class="flex space-x-4">
+        <button id="save-quiz-btn" onclick="saveQuiz()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Lưu đề thi</button>
+        <button onclick="prevAdminStep(7)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      </div>
     </div>
   </div>
 
@@ -281,10 +304,12 @@
       <source id="audio-source" src="" type="audio/mpeg">
     </audio>
     <div class="flex flex-col md:flex-row h-[calc(100vh-200px)] gap-4">
+      <!-- Cột trái: Danh sách ảnh -->
       <div id="image-list" class="w-full md:w-1/2 bg-white p-4 rounded-lg shadow overflow-y-auto">
         <h3 class="text-lg font-semibold mb-2">Ảnh Part <span id="image-part-number"></span></h3>
         <div id="image-content" class="space-y-4"></div>
       </div>
+      <!-- Cột phải: Danh sách câu hỏi -->
       <div id="question-list" class="w-full md:w-1/2 bg-white p-4 rounded-lg shadow overflow-y-auto">
         <h3 class="text-lg font-semibold mb-2">Câu hỏi Part <span id="question-part-number"></span></h3>
         <form id="quizForm" class="space-y-4">
@@ -425,8 +450,7 @@
           isAdmin = true;
           selectedQuizId = state.selectedQuizId;
           isDirectTestMode = state.isDirectTestMode;
-          isTestEnded = state.isTestEnded;
-          currentAdminStep = state.currentAdminStep;
+          isTestEnded = state.currentAdminStep;
 
           hideAllScreens();
           if (state.screen === "quiz-list-screen") {
