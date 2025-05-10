@@ -536,35 +536,66 @@
 
     studentNameForm.onsubmit = async (e) => {
       e.preventDefault();
+      console.log("Student login form submitted");
+      const nameInput = document.getElementById("student-name");
+      const name = nameInput.value.trim();
+      
+      if (!name) {
+        notification.innerText = "Vui lòng nhập tên!";
+        console.log("Error: Empty name input");
+        return;
+      }
+
+      if (name.length > 50) {
+        notification.innerText = "Tên không được dài quá 50 ký tự!";
+        console.log("Error: Name too long");
+        return;
+      }
+
       try {
-        const name = document.getElementById("student-name").value.trim();
-        if (!name) {
-          notification.innerText = "Vui lòng nhập tên!";
-          return;
-        }
+        console.log("Checking username uniqueness for:", name);
         const res = await fetch("/check-username", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username: name }),
         });
+
+        if (!res.ok) {
+          throw new Error(`HTTP error! Status: ${res.status}`);
+        }
+
         const result = await res.json();
+        console.log("Username check result:", result);
+
         if (result.exists) {
           notification.innerText = "Tên này đã được sử dụng. Vui lòng chọn tên khác!";
+          console.log("Error: Username already exists");
           return;
         }
+
         user = { name };
         isAdmin = false;
+        console.log("Student login successful, user:", user);
+
         hideAllScreens();
         quizListScreen.classList.remove("hidden");
         adminOptions.classList.add("hidden");
         adminControls.classList.add("hidden");
-        initializeWebSocket();
-        await loadQuizzes();
         downloadNotice.classList.add("hidden");
+
+        console.log("Initializing WebSocket");
+        initializeWebSocket();
+
+        console.log("Loading quizzes");
+        await loadQuizzes().catch(err => {
+          console.error("Error loading quizzes:", err);
+          notification.innerText = "Không thể tải danh sách đề thi. Vui lòng thử lại.";
+          quizList.innerHTML = "<p>Lỗi khi tải danh sách đề thi.</p>";
+        });
+
       } catch (error) {
-        console.error("Error during Student login:", error);
-        notification.innerText = "Đăng nhập học sinh thất bại. Vui lòng thử lại.";
-        showStudentLogin();
+        console.error("Error during student login:", error);
+        notification.innerText = "Lỗi khi đăng nhập. Vui lòng kiểm tra kết nối và thử lại.";
       }
     };
 
@@ -712,8 +743,7 @@
         }
       } catch (error) {
         console.error("Error loading quizzes:", error);
-        notification.innerText = "Không thể tải danh sách đề thi. Vui lòng thử lại.";
-        quizList.innerHTML = "<p>Lỗi khi tải danh sách đề thi.</p>";
+        throw error; // Let caller handle the error
       }
     }
 
@@ -1092,8 +1122,7 @@
         notification.innerText = result.message;
         hideAllScreens();
         backToQuizList();
-      } 
-catch (error) {
+      } catch (error) {
         console.error("Error saving quiz:", error);
         notification.innerText = "Lỗi khi lưu đề thi. Vui lòng thử lại.";
       }
