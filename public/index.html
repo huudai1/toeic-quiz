@@ -118,7 +118,7 @@
     <div id="upload-quizzes" class="mb-6 hidden">
       <h3 class="text-lg font-semibold mb-2">Nhập file đề thi (.json hoặc .zip)</h3>
       <input type="file" id="quizzes-file" accept=".json,.zip" class="mb-4">
-      <button onclick="uploadQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Tải lên</button>
+      <button onclick=" DistanceFromBottom: 0px;uploadQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Tải lên</button>
       <button onclick="backToQuizList()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
     </div>
 
@@ -144,7 +144,7 @@
       <input type="file" id="images-part1" multiple accept="image/*" class="mb-4">
       <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
       <textarea id="answer-key-part1" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 6 đáp án, ví dụ: A,D,C,B,A,C"></textarea>
-      <button onclick="prevAdminStep(1)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
+      <button onclick="prevAdminStep(1)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-(Request: Fix logic to check if username is actively in use, ensure no duplicate usernames in results, auto-proceed after valid student name entry)600 mr-2">Quay lại</button>
       <button onclick="nextAdminStep(2)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
     </div>
 
@@ -536,25 +536,22 @@
 
     studentNameForm.onsubmit = async (e) => {
       e.preventDefault();
-      console.log("Student login form submitted");
       const nameInput = document.getElementById("student-name");
       const name = nameInput.value.trim();
-      
+
       if (!name) {
         notification.innerText = "Vui lòng nhập tên!";
-        console.log("Error: Empty name input");
         return;
       }
 
       if (name.length > 50) {
         notification.innerText = "Tên không được dài quá 50 ký tự!";
-        console.log("Error: Name too long");
         return;
       }
 
       try {
-        console.log("Checking username uniqueness for:", name);
-        const res = await fetch("/check-username", {
+        // Modified: Check if username is actively in use
+        const res = await fetch("/check-active-username", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username: name }),
@@ -565,34 +562,29 @@
         }
 
         const result = await res.json();
-        console.log("Username check result:", result);
-
-        if (result.exists) {
-          notification.innerText = "Tên này đã được sử dụng. Vui lòng chọn tên khác!";
-          console.log("Error: Username already exists");
+        if (result.isActive) {
+          notification.innerText = "Tên này đang được sử dụng. Vui lòng chọn tên khác!";
           return;
         }
 
         user = { name };
         isAdmin = false;
-        console.log("Student login successful, user:", user);
-
         hideAllScreens();
         quizListScreen.classList.remove("hidden");
         adminOptions.classList.add("hidden");
         adminControls.classList.add("hidden");
         downloadNotice.classList.add("hidden");
 
-        console.log("Initializing WebSocket");
         initializeWebSocket();
-
-        console.log("Loading quizzes");
         await loadQuizzes().catch(err => {
           console.error("Error loading quizzes:", err);
           notification.innerText = "Không thể tải danh sách đề thi. Vui lòng thử lại.";
           quizList.innerHTML = "<p>Lỗi khi tải danh sách đề thi.</p>";
         });
 
+        // Modified: Clear input and notification for smooth transition
+        nameInput.value = "";
+        notification.innerText = "";
       } catch (error) {
         console.error("Error during student login:", error);
         notification.innerText = "Lỗi khi đăng nhập. Vui lòng kiểm tra kết nối và thử lại.";
@@ -711,7 +703,6 @@
           const statusRes = await fetchWithRetry('/quiz-status');
           const status = await statusRes.json();
           currentQuizId = status.quizId || currentQuizId;
-          console.log("Current Quiz ID from /quiz-status:", currentQuizId);
         } catch (statusError) {
           console.warn("Failed to fetch quiz status:", statusError);
           notification.innerText = "Không thể lấy trạng thái đề thi. Vui lòng thử lại sau.";
@@ -724,7 +715,6 @@
             const div = document.createElement("div");
             div.className = "flex items-center space-x-2";
             const isSelected = currentQuizId === quiz.quizId;
-            console.log(`Quiz: ${quiz.quizName}, ID: ${quiz.quizId}, Selected: ${isSelected}`);
             if (isAdmin) {
               div.innerHTML = `
                 <span class="text-lg font-medium">${quiz.quizName}${isSelected ? ' ✅' : ''}</span>
@@ -743,7 +733,7 @@
         }
       } catch (error) {
         console.error("Error loading quizzes:", error);
-        throw error; // Let caller handle the error
+        throw error;
       }
     }
 
@@ -824,7 +814,7 @@
         }
       } catch (error) {
         console.error("Error assigning quiz:", error);
-        notification.innerText = "Chức năng hiện không khả dụng.";
+        notification.innerText = "Lỗi khi giao đề thi. Vui lòng thử lại.";
       }
     }
 
@@ -1132,22 +1122,20 @@
       try {
         const res = await fetch("/results");
         const results = await res.json();
-        // Filter unique results by username, keeping the latest result
-        const uniqueResults = [];
-        const seenUsernames = new Set();
+        // Modified: Use Map to ensure unique usernames, keeping latest result
+        const resultMap = new Map();
         results
-          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)) // Sort by timestamp descending
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
           .forEach(result => {
-            if (!seenUsernames.has(result.username)) {
-              seenUsernames.add(result.username);
-              uniqueResults.push(result);
+            if (!resultMap.has(result.username)) {
+              resultMap.set(result.username, result);
             }
           });
         historyBody.innerHTML = "";
-        if (uniqueResults.length === 0) {
+        if (resultMap.size === 0) {
           historyBody.innerHTML = '<tr><td colspan="4" class="border p-2 text-center">Chưa có kết quả.</td></tr>';
         } else {
-          uniqueResults.forEach(result => {
+          resultMap.forEach(result => {
             const tr = document.createElement("tr");
             tr.innerHTML = `
               <td class="border p-2"><input type="checkbox" class="result-checkbox" value="${result.resultId}"></td>
@@ -1306,27 +1294,29 @@
       try {
         const res = await fetch("/results");
         const results = await res.json();
-        // Filter unique results by username, keeping the latest result
-        const uniqueResults = [];
-        const seenUsernames = new Set();
+        // Modified: Use Map to ensure unique usernames, keeping latest result
+        const resultMap = new Map();
         results
           .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
           .forEach(result => {
-            if (!seenUsernames.has(result.username)) {
-              seenUsernames.add(result.username);
-              uniqueResults.push(result);
+            if (!resultMap.has(result.username)) {
+              resultMap.set(result.username, result);
             }
           });
         resultsBody.innerHTML = "";
-        uniqueResults.forEach(result => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td class="border p-2">${result.username}</td>
-            <td class="border p-2">${result.score}/200</td>
-            <td class="border p-2">${new Date(result.timestamp).toLocaleString()}</td>
-          `;
-          resultsBody.appendChild(tr);
-        });
+        if (resultMap.size === 0) {
+          resultsBody.innerHTML = '<tr><td colspan="3" class="border p-2 text-center">Chưa có kết quả.</td></tr>';
+        } else {
+          resultMap.forEach(result => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td class="border p-2">${result.username}</td>
+              <td class="border p-2">${result.score}/200</td>
+              <td class="border p-2">${new Date(result.timestamp).toLocaleString()}</td>
+            `;
+            resultsBody.appendChild(tr);
+          });
+        }
       } catch (error) {
         console.error("Error fetching results:", error);
         notification.innerText = "Lỗi khi tải kết quả. Vui lòng thử lại.";
@@ -1337,22 +1327,20 @@
       try {
         const res = await fetch("/results");
         const results = await res.json();
-        // Filter unique results by username, keeping the latest result
-        const uniqueResults = [];
-        const seenUsernames = new Set();
+        // Modified: Use Map to ensure unique usernames, keeping latest result
+        const resultMap = new Map();
         results
           .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
           .forEach(result => {
-            if (!seenUsernames.has(result.username)) {
-              seenUsernames.add(result.username);
-              uniqueResults.push(result);
+            if (!resultMap.has(result.username)) {
+              resultMap.set(result.username, result);
             }
           });
         directResultsBody.innerHTML = "";
-        if (uniqueResults.length === 0) {
+        if (resultMap.size === 0) {
           directResultsBody.innerHTML = '<tr><td colspan="3" class="border p-2 text-center">Chưa có kết quả.</td></tr>';
         } else {
-          uniqueResults.forEach(result => {
+          resultMap.forEach(result => {
             const tr = document.createElement("tr");
             tr.innerHTML = `
               <td class="border p-2">${result.username}</td>
