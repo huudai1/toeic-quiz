@@ -623,10 +623,19 @@
         const quizzes = await res.json();
         let currentQuizId = null;
         // Lấy quizId được chọn hiện tại từ server
-        const statusRes = await fetch('/quiz-status');
-        if (statusRes.ok) {
-          const status = await statusRes.json();
-          currentQuizId = status.quizId;
+        try {
+          const statusRes = await fetch('/quiz-status');
+          if (statusRes.ok) {
+            const status = await statusRes.json();
+            currentQuizId = status.quizId;
+            console.log("Current Quiz ID from /quiz-status:", currentQuizId); // Debug
+          } else {
+            console.error("Failed to fetch quiz status:", statusRes.status);
+            notification.innerText = "Không thể lấy trạng thái đề thi.";
+          }
+        } catch (statusError) {
+          console.error("Error fetching quiz status:", statusError);
+          notification.innerText = "Lỗi khi lấy trạng thái đề thi.";
         }
         quizList.innerHTML = "";
         if (quizzes.length === 0) {
@@ -636,6 +645,7 @@
             const div = document.createElement("div");
             div.className = "flex items-center space-x-2";
             const isSelected = currentQuizId === quiz.quizId;
+            console.log(`Quiz: ${quiz.quizName}, ID: ${quiz.quizId}, Selected: ${isSelected}`); // Debug
             if (isAdmin) {
               div.innerHTML = `
                 <span class="text-lg font-medium">${quiz.quizName}${isSelected ? ' ✅' : ''}</span>
@@ -690,7 +700,7 @@
           selectedQuizId = quizId;
           assignBtn.classList.remove("hidden");
           directTestBtn.classList.remove("hidden");
-          loadQuizzes();
+          await loadQuizzes(); // Tải lại danh sách để hiển thị ✅
           notification.innerText = `Đã chọn đề: ${result.quizName}`;
           if (socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ type: "quizSelected", quizId }));
@@ -736,7 +746,7 @@
         }
       } catch (error) {
         console.error("Error assigning quiz:", error);
-        notification.innerText = "Hiện tại chức năng không khả .";
+        notification.innerText = "Chức năng hiện không khả dụng.";
       }
     }
 
