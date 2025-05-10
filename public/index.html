@@ -13,13 +13,10 @@
     Your browser does not support the audio element.
   </audio>
   <div id="timer" class="fixed top-4 left-4 text-lg font-bold hidden"></div>
-  <!-- Nút mũi tên và khung bộ đếm ngược -->
-  <div id="countdown-toggle" class="fixed top-4 right-16 z-50 cursor-pointer">
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-    </svg>
+  <!-- Thông báo tải đề -->
+  <div id="download-notice" class="fixed top-10 right-4 z-50 bg-white p-4 rounded-lg shadow-lg text-lg font-bold hidden transition-all duration-300 transform translate-y-[-10px]">
+    Hãy nhớ tải đề về trước khi tắt!!!
   </div>
-  <div id="countdown-panel" class="fixed top-10 right-4 z-50 bg-white p-4 rounded-lg shadow-lg text-lg font-bold hidden transition-all duration-300 transform translate-y-[-10px]" style="white-space: pre-line;"></div>
   <div class="max-w-7xl mx-auto bg-white rounded-lg shadow-lg p-6">
     <h1 class="text-3xl font-bold text-center mb-6">TOEIC Quiz</h1>
 
@@ -61,9 +58,8 @@
       <div id="admin-controls" class="mt-4 hidden">
         <div id="participant-count" class="text-lg font-semibold mb-2"></div>
         <div id="submitted-count" class="text-lg font-semibold mb-2"></div>
-        <button id="startBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2 hidden">Bắt đầu làm bài</button>
-        <button id="endBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 mr-2 hidden">Kết thúc</button>
-        <button id="reuseBtn" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 mr-2 hidden">Dùng lại đề cho lớp mới</button>
+        <button id="assignBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2 hidden">Giao đề</button>
+        <button id="directTestBtn" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 mr-2 hidden">Kiểm tra trực tiếp</button>
         <div id="results-table" class="mt-4 hidden">
           <h3 class="text-lg font-bold mb-2">Kết quả</h3>
           <table class="w-full border-collapse">
@@ -79,6 +75,27 @@
         </div>
       </div>
       <button onclick="logout()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Đăng xuất</button>
+    </div>
+
+    <div id="direct-test-screen" class="mb-6 hidden">
+      <h2 class="text-xl font-bold mb-4">Chế độ kiểm tra trực tiếp</h2>
+      <div id="direct-participant-count" class="text-lg font-semibold mb-2"></div>
+      <div id="direct-submitted-count" class="text-lg font-semibold mb-2"></div>
+      <button id="endDirectTestBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 mr-2">Kết thúc kiểm tra</button>
+      <div id="direct-results-table" class="mt-4 hidden">
+        <h3 class="text-lg font-bold mb-2">Kết quả kiểm tra trực tiếp</h3>
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="bg-gray-200">
+              <th class="border p-2">Tên</th>
+              <th class="border p-2">Điểm</th>
+              <th class="border p-2">Thời gian nộp</th>
+            </tr>
+          </thead>
+          <tbody id="direct-results-body"></tbody>
+        </table>
+      </div>
+      <button onclick="backToQuizList()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
     </div>
 
     <div id="upload-quizzes" class="mb-6 hidden">
@@ -244,6 +261,8 @@
     let timeLeft = 7200;
     let timerInterval = null;
     let isAdminControlled = false;
+    let selectedQuizId = null;
+    let isDirectTestMode = false;
     const welcomeScreen = document.getElementById("welcome-screen");
     const adminLogin = document.getElementById("admin-login");
     const studentLogin = document.getElementById("student-login");
@@ -259,9 +278,14 @@
     const quizStatus = document.getElementById("quiz-status");
     const participantCount = document.getElementById("participant-count");
     const submittedCount = document.getElementById("submitted-count");
-    const startBtn = document.getElementById("startBtn");
-    const endBtn = document.getElementById("endBtn");
-    const reuseBtn = document.getElementById("reuseBtn");
+    const assignBtn = document.getElementById("assignBtn");
+    const directTestBtn = document.getElementById("directTestBtn");
+    const directTestScreen = document.getElementById("direct-test-screen");
+    const endDirectTestBtn = document.getElementById("endDirectTestBtn");
+    const directParticipantCount = document.getElementById("direct-participant-count");
+    const directSubmittedCount = document.getElementById("direct-submitted-count");
+    const directResultsTable = document.getElementById("direct-results-table");
+    const directResultsBody = document.getElementById("direct-results-body");
     const resultsTable = document.getElementById("results-table");
     const resultsBody = document.getElementById("results-body");
     const imageDisplay = document.getElementById("image-display");
@@ -273,8 +297,7 @@
     const resultScore = document.getElementById("result-score");
     const resultTime = document.getElementById("result-time");
     const resultSubmitted = document.getElementById("result-submitted");
-    const countdownToggle = document.getElementById("countdown-toggle");
-    const countdownPanel = document.getElementById("countdown-panel");
+    const downloadNotice = document.getElementById("download-notice");
 
     const wsProtocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
     let socket = null;
@@ -282,76 +305,35 @@
     let currentQuizPart = 0;
     const partAnswerCounts = [6, 25, 39, 30, 30, 16, 54];
 
-    // Countdown logic for 6 days
-    let countdownInterval = null;
-    let autoShowInterval = null;
-    const sixDaysInSeconds = 6 * 24 * 60 * 60; // 6 days in seconds
-    let countdownTimeLeft = sixDaysInSeconds;
-
-    function showCountdown() {
-      countdownPanel.classList.remove("hidden");
-      countdownPanel.classList.remove("translate-y-[-10px]");
-      countdownPanel.classList.add("translate-y-0");
-      // Auto-hide after 5 seconds
-      setTimeout(hideCountdown, 5000);
+    function showDownloadNotice() {
+      downloadNotice.classList.remove("hidden");
+      downloadNotice.classList.remove("translate-y-[-10px]");
+      downloadNotice.classList.add("translate-y-0");
+      setTimeout(hideDownloadNotice, 5000);
     }
 
-    function hideCountdown() {
-      countdownPanel.classList.add("translate-y-[-10px]");
+    function hideDownloadNotice() {
+      downloadNotice.classList.add("translate-y-[-10px]");
       setTimeout(() => {
-        countdownPanel.classList.add("hidden");
-        countdownPanel.classList.remove("translate-y-0");
-      }, 300); // Match transition duration
+        downloadNotice.classList.add("hidden");
+        downloadNotice.classList.remove("translate-y-0");
+      }, 300);
     }
 
-    function startCountdown() {
-      // Update countdown display every second
-      countdownInterval = setInterval(() => {
-        if (countdownTimeLeft <= 0) {
-          clearInterval(countdownInterval);
-          clearInterval(autoShowInterval);
-          countdownPanel.innerText = "Hết thời gian dữ liệu có thể bị mất bất cứ lúc nào !";
-          showCountdown(); // Show permanently when time is up
-          countdownToggle.classList.add("hidden"); // Hide toggle button
-          return;
-        }
-        const days = Math.floor(countdownTimeLeft / (24 * 60 * 60));
-        const hours = Math.floor((countdownTimeLeft % (24 * 60 * 60)) / (60 * 60));
-        const minutes = Math.floor((countdownTimeLeft % (60 * 60)) / 60);
-        const seconds = countdownTimeLeft % 60;
-        countdownPanel.innerText = `Thời gian còn lại: ${days} ngày ${hours}:${minutes < 10 ? "0" : ""}${minutes}:${seconds < 10 ? "0" : ""}${seconds}\nHãy nhớ tải đề về trước khi tắt !!!`;
-        countdownTimeLeft--;
-      }, 1000);
-
-      // Auto-show countdown every 30 seconds for 5 seconds
-      autoShowInterval = setInterval(() => {
-        if (!countdownPanel.classList.contains("hidden")) return; // Skip if already visible
-        showCountdown();
+    function startDownloadNotice() {
+      showDownloadNotice();
+      setInterval(() => {
+        if (!downloadNotice.classList.contains("hidden")) return;
+        showDownloadNotice();
       }, 30000);
-
-      // Toggle countdown on click
-      countdownToggle.addEventListener("click", () => {
-        if (countdownPanel.classList.contains("hidden")) {
-          showCountdown();
-        } else {
-          hideCountdown();
-        }
-      });
-
-      // Initial show
-      showCountdown();
     }
-
-    // Start countdown when the page loads
-    startCountdown();
 
     function showAdminLogin() {
       welcomeScreen.classList.add("hidden");
       adminLogin.classList.remove("hidden");
       studentLogin.classList.add("hidden");
       notification.innerText = "";
-      countdownToggle.classList.add("hidden");
-      countdownPanel.classList.add("hidden");
+      downloadNotice.classList.add("hidden");
     }
 
     function showStudentLogin() {
@@ -359,8 +341,7 @@
       adminLogin.classList.add("hidden");
       studentLogin.classList.remove("hidden");
       notification.innerText = "";
-      countdownToggle.classList.add("hidden");
-      countdownPanel.classList.add("hidden");
+      downloadNotice.classList.add("hidden");
     }
 
     function showWelcomeScreen() {
@@ -370,17 +351,20 @@
       quizListScreen.classList.add("hidden");
       quizContainer.classList.add("hidden");
       resultScreen.classList.add("hidden");
+      directTestScreen.classList.add("hidden");
       document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
       uploadQuizzesSection.classList.add("hidden");
       notification.innerText = "";
       user = null;
       isAdmin = false;
+      selectedQuizId = null;
+      isDirectTestMode = false;
       if (socket) {
         socket.close();
         socket = null;
       }
-      countdownToggle.classList.remove("hidden");
-      showCountdown(); // Show countdown on welcome screen
+      downloadNotice.classList.remove("hidden");
+      startDownloadNotice();
     }
 
     function initializeWebSocket() {
@@ -422,8 +406,7 @@
         adminControls.classList.remove("hidden");
         initializeWebSocket();
         await loadQuizzes();
-        countdownToggle.classList.add("hidden");
-        countdownPanel.classList.add("hidden");
+        downloadNotice.classList.add("hidden");
       } catch (error) {
         console.error("Error during Admin login:", error);
         notification.innerText = "Đăng nhập Admin thất bại. Vui lòng thử lại hoặc kiểm tra Client ID.";
@@ -447,8 +430,7 @@
         adminControls.classList.add("hidden");
         initializeWebSocket();
         await loadQuizzes();
-        countdownToggle.classList.add("hidden");
-        countdownPanel.classList.add("hidden");
+        downloadNotice.classList.add("hidden");
       } catch (error) {
         console.error("Error during Student login:", error);
         notification.innerText = "Đăng nhập học sinh thất bại. Vui lòng thử lại.";
@@ -462,24 +444,23 @@
       document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
       quizContainer.classList.add("hidden");
       resultScreen.classList.add("hidden");
+      directTestScreen.classList.add("hidden");
       notification.innerText = "";
-      countdownToggle.classList.add("hidden");
-      countdownPanel.classList.add("hidden");
+      isDirectTestMode = false;
+      downloadNotice.classList.add("hidden");
       loadQuizzes();
     }
 
     function createNewQuiz() {
       quizListScreen.classList.add("hidden");
       document.getElementById("admin-step-audio").classList.remove("hidden");
-      countdownToggle.classList.add("hidden");
-      countdownPanel.classList.add("hidden");
+      downloadNotice.classList.add("hidden");
     }
 
     function showUploadQuizzes() {
       quizListScreen.classList.add("hidden");
       uploadQuizzesSection.classList.remove("hidden");
-      countdownToggle.classList.add("hidden");
-      countdownPanel.classList.add("hidden");
+      downloadNotice.classList.add("hidden");
     }
 
     async function uploadQuizzes() {
@@ -550,16 +531,15 @@
             div.className = "flex items-center space-x-2";
             if (isAdmin) {
               div.innerHTML = `
-                <span>${quiz.quizName}</span>
-                <button onclick="selectQuiz('${quiz.quizId}')" class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">Chọn để kiểm soát</button>
-                <button onclick="startQuiz('${quiz.quizId}')" class="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">Bắt đầu làm bài</button>
+                <span>${quiz.quizName}${selectedQuizId === quiz.quizId ? ' ✅' : ''}</span>
+                <button onclick="selectQuiz('${quiz.quizId}')" class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">Chọn</button>
                 <button onclick="downloadQuizzes('${quiz.quizId}')" class="bg-purple-500 text-white px-2 py-1 rounded hover:bg-purple-600">Tải xuống</button>
                 <button onclick="deleteQuiz('${quiz.quizId}')" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Xóa</button>
               `;
             } else {
               div.innerHTML = `
                 <span>${quiz.quizName}</span>
-                <button onclick="startQuiz('${quiz.quizId}')" class="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">Bắt đầu làm bài</button>
+                <button onclick="startQuiz('${quiz.quizId}')" class="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 ${quiz.isAssigned ? '' : 'hidden'}">Bắt đầu làm bài</button>
               `;
             }
             quizList.appendChild(div);
@@ -581,6 +561,7 @@
         const result = await res.json();
         notification.innerText = result.message;
         if (res.ok) {
+          if (selectedQuizId === quizId) selectedQuizId = null;
           loadQuizzes();
         }
       } catch (error) {
@@ -598,27 +579,95 @@
         });
         const result = await res.json();
         if (res.ok) {
-          const timeLimit = prompt("Nhập thời gian làm bài (phút, tối đa 120):", "120");
-          if (timeLimit === null) return;
-          let timeLimitSeconds = parseInt(timeLimit) * 60;
-          if (isNaN(timeLimitSeconds) || timeLimitSeconds <= 0 || timeLimitSeconds > 7200) {
-            notification.innerText = "Thời gian không hợp lệ! Sử dụng mặc định 120 phút.";
-            timeLimitSeconds = 7200;
-          }
-          startBtn.classList.remove("hidden");
-          startBtn.onclick = () => {
-            if (socket && socket.readyState === WebSocket.OPEN) {
-              socket.send(JSON.stringify({ type: "start", timeLimit: timeLimitSeconds }));
-            } else {
-              notification.innerText = "Không thể gửi tín hiệu bắt đầu. Kết nối WebSocket không hoạt động.";
-            }
-          };
+          selectedQuizId = quizId;
+          assignBtn.classList.remove("hidden");
+          directTestBtn.classList.remove("hidden");
+          loadQuizzes();
+          notification.innerText = `Đã chọn đề: ${result.quizName}`;
         } else {
           notification.innerText = result.message;
         }
       } catch (error) {
         console.error("Error selecting quiz:", error);
         notification.innerText = "Lỗi khi chọn đề thi. Vui lòng thử lại.";
+      }
+    }
+
+    async function assignQuiz() {
+      if (!selectedQuizId) {
+        notification.innerText = "Vui lòng chọn một đề thi trước!";
+        return;
+      }
+      const timeLimit = prompt("Nhập thời gian làm bài (phút, tối đa 120):", "120");
+      if (timeLimit === null) return;
+      let timeLimitSeconds = parseInt(timeLimit) * 60;
+      if (isNaN(timeLimitSeconds) || timeLimitSeconds <= 0 || timeLimitSeconds > 7200) {
+        notification.innerText = "Thời gian không hợp lệ! Sử dụng mặc định 120 phút.";
+        timeLimitSeconds = 7200;
+      }
+      try {
+        const res = await fetch("/assign-quiz", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ quizId: selectedQuizId, timeLimit: timeLimitSeconds }),
+        });
+        const result = await res.json();
+        if (res.ok) {
+          notification.innerText = "Học sinh đã có thể làm bài!";
+          if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: "quizAssigned", quizId: selectedQuizId, timeLimit: timeLimitSeconds }));
+          }
+          loadQuizzes();
+        } else {
+          notification.innerText = result.message;
+        }
+      } catch (error) {
+        console.error("Error assigning quiz:", error);
+        notification.innerText = "Lỗi khi giao đề thi. Vui lòng thử lại.";
+      }
+    }
+
+    async function startDirectTest() {
+      if (!selectedQuizId) {
+        notification.innerText = "Vui lòng chọn một đề thi trước!";
+        return;
+      }
+      const timeLimit = prompt("Nhập thời gian làm bài (phút, tối đa 120):", "120");
+      if (timeLimit === null) return;
+      let timeLimitSeconds = parseInt(timeLimit) * 60;
+      if (isNaN(timeLimitSeconds) || timeLimitSeconds <= 0 || timeLimitSeconds > 7200) {
+        notification.innerText = "Thời gian không hợp lệ! Sử dụng mặc định 120 phút.";
+        timeLimitSeconds = 7200;
+      }
+      try {
+        const res = await fetch("/select-quiz", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ quizId: selectedQuizId }),
+        });
+        const result = await res.json();
+        if (res.ok) {
+          isDirectTestMode = true;
+          quizListScreen.classList.add("hidden");
+          directTestScreen.classList.remove("hidden");
+          if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: "start", timeLimit: timeLimitSeconds }));
+          }
+          notification.innerText = "Đã bắt đầu kiểm tra trực tiếp.";
+        } else {
+          notification.innerText = result.message;
+        }
+      } catch (error) {
+        console.error("Error starting direct test:", error);
+        notification.innerText = "Lỗi khi bắt đầu kiểm tra trực tiếp. Vui lòng thử lại.";
+      }
+    }
+
+    async function endDirectTest() {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "end" }));
+      } else {
+        notification.innerText = "Không thể gửi tín hiệu kết thúc. Kết nối WebSocket không hoạt động.";
       }
     }
 
@@ -632,7 +681,7 @@
         const result = await res.json();
         if (res.ok) {
           isAdminControlled = false;
-          timeLeft = 7200;
+          timeLeft = result.timeLimit || 7200;
           quizListScreen.classList.add("hidden");
           quizContainer.classList.remove("hidden");
           timerDisplay.classList.remove("hidden");
@@ -640,8 +689,7 @@
           await loadAudio(1);
           await loadImages(1);
           startTimer();
-          countdownToggle.classList.add("hidden");
-          countdownPanel.classList.add("hidden");
+          downloadNotice.classList.add("hidden");
         } else {
           notification.innerText = result.message;
         }
@@ -884,6 +932,9 @@
     function handleWebSocketMessage(event) {
       try {
         const msg = JSON.parse(event.data);
+        if (msg.type === "quizAssigned" && !isAdmin) {
+          loadQuizzes();
+        }
         if (msg.type === "start") {
           if (!isAdmin) {
             isAdminControlled = true;
@@ -895,21 +946,18 @@
             loadAudio(1);
             loadImages(1);
             startTimer();
-            countdownToggle.classList.add("hidden");
-            countdownPanel.classList.add("hidden");
-          } else {
-            startBtn.classList.add("hidden");
-            endBtn.classList.remove("hidden");
-            reuseBtn.classList.add("hidden");
-            resultsTable.classList.add("hidden");
+            downloadNotice.classList.add("hidden");
+          } else if (isDirectTestMode) {
+            directResultsTable.classList.add("hidden");
           }
         }
         if (msg.type === "end") {
           if (!isAdmin) {
             submitQuiz();
+          } else if (isDirectTestMode) {
+            directResultsTable.classList.remove("hidden");
+            fetchDirectResults();
           } else {
-            endBtn.classList.add("hidden");
-            reuseBtn.classList.remove("hidden");
             resultsTable.classList.remove("hidden");
             fetchResults();
           }
@@ -919,18 +967,21 @@
           notification.innerText = `${who} đã nộp bài.`;
         }
         if (msg.type === "participantCount") {
-          if (isAdmin) participantCount.innerText = `Số người tham gia: ${msg.count}`;
+          if (isAdmin) {
+            participantCount.innerText = `Số người tham gia: ${msg.count}`;
+            directParticipantCount.innerText = `Số người tham gia: ${msg.count}`;
+          }
         }
         if (msg.type === "submittedCount") {
-          if (isAdmin) submittedCount.innerText = `Số người đã nộp: ${msg.count}`;
+          if (isAdmin) {
+            submittedCount.innerText = `Số người đã nộp: ${msg.count}`;
+            directSubmittedCount.innerText = `Số người đã nộp: ${msg.count}`;
+          }
           resultSubmitted.innerText = `Số người đã nộp: ${msg.count}`;
           resultSubmitted.classList.remove("hidden");
         }
         if (msg.type === "quizStatus") {
           quizStatus.innerText = msg.quizExists ? "Đang có bài thi được chọn." : "";
-          if (isAdmin) {
-            startBtn.classList.toggle("hidden", !msg.quizExists);
-          }
         }
       } catch (error) {
         console.error("Error handling WebSocket message:", error);
@@ -938,29 +989,16 @@
       }
     }
 
-    if (endBtn) {
-      endBtn.onclick = () => {
-        if (socket && socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify({ type: "end" }));
-        } else {
-          notification.innerText = "Không thể gửi tín hiệu kết thúc. Kết nối WebSocket không hoạt động.";
-        }
-      };
+    if (assignBtn) {
+      assignBtn.onclick = assignQuiz;
     }
-    if (reuseBtn) {
-      reuseBtn.onclick = async () => {
-        try {
-          const res = await fetch("/reset", { method: "POST" });
-          const result = await res.json();
-          notification.innerText = result.message;
-          startBtn.classList.remove("hidden");
-          reuseBtn.classList.add("hidden");
-          resultsTable.classList.add("hidden");
-        } catch (error) {
-          console.error("Error resetting quiz:", error);
-          notification.innerText = "Lỗi khi đặt lại bài thi. Vui lòng thử lại.";
-        }
-      };
+
+    if (directTestBtn) {
+      directTestBtn.onclick = startDirectTest;
+    }
+
+    if (endDirectTestBtn) {
+      endDirectTestBtn.onclick = endDirectTest;
     }
 
     async function fetchResults() {
@@ -980,6 +1018,26 @@
       } catch (error) {
         console.error("Error fetching results:", error);
         notification.innerText = "Lỗi khi tải kết quả. Vui lòng thử lại.";
+      }
+    }
+
+    async function fetchDirectResults() {
+      try {
+        const res = await fetch("/results");
+        const results = await res.json();
+        directResultsBody.innerHTML = "";
+        results.forEach(result => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td class="border p-2">${result.username}</td>
+            <td class="border p-2">${result.score}/200</td>
+            <td class="border p-2">${new Date(result.timestamp).toLocaleString()}</td>
+          `;
+          directResultsBody.appendChild(tr);
+        });
+      } catch (error) {
+        console.error("Error fetching direct results:", error);
+        notification.innerText = "Lỗi khi tải kết quả kiểm tra trực tiếp. Vui lòng thử lại.";
       }
     }
 
@@ -1007,8 +1065,8 @@
           if (isAdminControlled && socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ type: "submitted", username: user.name }));
           }
-          countdownToggle.classList.remove("hidden");
-          showCountdown(); // Show countdown after submitting
+          downloadNotice.classList.remove("hidden");
+          showDownloadNotice();
         } else {
           notification.innerText = result.message || "Lỗi khi nộp bài!";
         }
@@ -1026,6 +1084,9 @@
     function logout() {
       showWelcomeScreen();
     }
+
+    // Start download notice on page load
+    startDownloadNotice();
   </script>
 </body>
 </html>
