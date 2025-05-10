@@ -491,9 +491,6 @@
         socket.onopen = () => {
           console.log("WebSocket connected successfully.");
           socket.send(JSON.stringify({ type: "requestQuizStatus" }));
-          if (!isAdmin && user && user.name) {
-            socket.send(JSON.stringify({ type: "userLogin", username: user.name }));
-          }
         };
         socket.onmessage = handleWebSocketMessage;
         socket.onerror = (error) => {
@@ -552,58 +549,23 @@
         return;
       }
 
+      user = { name };
+      isAdmin = false;
+      hideAllScreens();
+      quizListScreen.classList.remove("hidden");
+      adminOptions.classList.add("hidden");
+      adminControls.classList.add("hidden");
+      downloadNotice.classList.add("hidden");
+
+      initializeWebSocket();
       try {
-        // Check for concurrent username usage
-        const res = await fetch("/check-concurrent-username", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: name }),
-        });
-
-        if (!res.ok) {
-          console.warn(`Username check failed with status: ${res.status}. Proceeding with login.`);
-          // Fallback: Assume username is valid if server doesn't explicitly reject
-        }
-
-        const result = await res.json().catch(() => ({}));
-        if (result.isActive) {
-          notification.innerText = "Tên này hiện đang được sử dụng. Vui lòng chọn tên khác hoặc đợi một lát.";
-          return;
-        }
-
-        // Register username with server
-        const registerRes = await fetch("/register-username", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: name }),
-        });
-
-        if (!registerRes.ok) {
-          console.error(`Failed to register username: ${registerRes.status}`);
-          notification.innerText = "Lỗi khi đăng ký tên. Vui lòng thử lại.";
-          return;
-        }
-
-        user = { name };
-        isAdmin = false;
-        hideAllScreens();
-        quizListScreen.classList.remove("hidden");
-        adminOptions.classList.add("hidden");
-        adminControls.classList.add("hidden");
-        downloadNotice.classList.add("hidden");
-
-        initializeWebSocket();
-        await loadQuizzes().catch(err => {
-          console.error("Error loading quizzes:", err);
-          notification.innerText = "Không thể tải danh sách đề thi. Vui lòng thử lại.";
-          quizList.innerHTML = "<p>Lỗi khi tải danh sách đề thi.</p>";
-        });
-
+        await loadQuizzes();
         nameInput.value = "";
         notification.innerText = "";
-      } catch (error) {
-        console.error("Error during student login:", error);
-        notification.innerText = "Lỗi khi đăng nhập. Vui lòng thử tên khác hoặc kiểm tra kết nối.";
+      } catch (err) {
+        console.error("Error loading quizzes:", err);
+        notification.innerText = "Không thể tải danh sách đề thi. Vui lòng thử lại.";
+        quizList.innerHTML = "<p>Lỗi khi tải danh sách đề thi.</p>";
       }
     };
 
@@ -653,7 +615,7 @@
       }
 
       const formData = new FormData();
-      formData.append("quizzes", file);
+      formtheories fileFormData.append("quizzes", file);
 
       try {
         let endpoint = file.name.endsWith('.zip') ? '/upload-quizzes-zip' : '/upload-quizzes';
@@ -1411,20 +1373,6 @@
     };
 
     async function logout() {
-      if (!isAdmin && user && user.name) {
-        if (socket && socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify({ type: "userLogout", username: user.name }));
-        }
-        try {
-          await fetch("/logout-user", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username: user.name }),
-          });
-        } catch (error) {
-          console.error("Error notifying server of logout:", error);
-        }
-      }
       showWelcomeScreen();
     }
 
