@@ -118,7 +118,7 @@
     <div id="upload-quizzes" class="mb-6 hidden">
       <h3 class="text-lg font-semibold mb-2">Nhập file đề thi (.json hoặc .zip)</h3>
       <input type="file" id="quizzes-file" accept=".json,.zip" class="mb-4">
-      <button onclick=" DistanceFromBottom: 0px;uploadQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Tải lên</button>
+      <button onclick="uploadQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Tải lên</button>
       <button onclick="backToQuizList()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
     </div>
 
@@ -144,7 +144,7 @@
       <input type="file" id="images-part1" multiple accept="image/*" class="mb-4">
       <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
       <textarea id="answer-key-part1" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 6 đáp án, ví dụ: A,D,C,B,A,C"></textarea>
-      <button onclick="prevAdminStep(1)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-(Request: Fix logic to check if username is actively in use, ensure no duplicate usernames in results, auto-proceed after valid student name entry)600 mr-2">Quay lại</button>
+      <button onclick="prevAdminStep(1)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
       <button onclick="nextAdminStep(2)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
     </div>
 
@@ -491,6 +491,10 @@
         socket.onopen = () => {
           console.log("WebSocket connected successfully.");
           socket.send(JSON.stringify({ type: "requestQuizStatus" }));
+          // Modified: Notify server of user login if not admin
+          if (!isAdmin && user && user.name) {
+            socket.send(JSON.stringify({ type: "userLogin", username: user.name }));
+          }
         };
         socket.onmessage = handleWebSocketMessage;
         socket.onerror = (error) => {
@@ -550,8 +554,8 @@
       }
 
       try {
-        // Modified: Check if username is actively in use
-        const res = await fetch("/check-active-username", {
+        // Modified: Check for concurrent username usage only
+        const res = await fetch("/check-concurrent-username", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username: name }),
@@ -563,7 +567,7 @@
 
         const result = await res.json();
         if (result.isActive) {
-          notification.innerText = "Tên này đang được sử dụng. Vui lòng chọn tên khác!";
+          notification.innerText = "Tên này hiện đang được sử dụng bởi người khác. Vui lòng chọn tên khác hoặc đợi người đó đăng xuất.";
           return;
         }
 
@@ -582,7 +586,7 @@
           quizList.innerHTML = "<p>Lỗi khi tải danh sách đề thi.</p>";
         });
 
-        // Modified: Clear input and notification for smooth transition
+        // Clear input and notification for smooth transition
         nameInput.value = "";
         notification.innerText = "";
       } catch (error) {
@@ -1122,7 +1126,6 @@
       try {
         const res = await fetch("/results");
         const results = await res.json();
-        // Modified: Use Map to ensure unique usernames, keeping latest result
         const resultMap = new Map();
         results
           .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
@@ -1294,7 +1297,6 @@
       try {
         const res = await fetch("/results");
         const results = await res.json();
-        // Modified: Use Map to ensure unique usernames, keeping latest result
         const resultMap = new Map();
         results
           .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
@@ -1327,7 +1329,6 @@
       try {
         const res = await fetch("/results");
         const results = await res.json();
-        // Modified: Use Map to ensure unique usernames, keeping latest result
         const resultMap = new Map();
         results
           .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
@@ -1397,7 +1398,20 @@
       await submitQuiz();
     };
 
-    function logout() {
+    async function logout() {
+      if (!isAdmin && user && user.name && socket && socket.readyState === WebSocket.OPEN) {
+        // Modified: Notify server of user logout to release username
+        socket.send(JSON.stringify({ type: "userLogout", username: user.name }));
+        try {
+          await fetch("/logout-user", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: user.name }),
+          });
+        } catch (error) {
+          console.error("Error notifying server of logout:", error);
+        }
+      }
       showWelcomeScreen();
     }
 
