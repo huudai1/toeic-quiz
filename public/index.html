@@ -1259,68 +1259,70 @@
   }
 
   function handleWebSocketMessage(event) {
-    try {
-      if (!event.data) {
-        console.warn("Received empty WebSocket message");
-        return;
-      }
-      const message = JSON.parse(event.data);
-      if (message.type === "quizStatus") {
-        quizStatus.innerText = message.quizId ? `Đề thi hiện tại: ${message.quizName}` : "Chưa có đề thi được chọn.";
-        selectedQuizId = message.quizId;
-        if (isAdmin && message.quizId) {
-          assignBtn.classList.remove("hidden");
-          directTestBtn.classList.remove("hidden");
-        }
-        loadQuizzes();
-      } else if (message.type === "participants") {
-        participantCount.innerText = `Số người tham gia: ${message.count || 0}`;
-        directParticipantCount.innerText = `Số người tham gia: ${message.count || 0}`;
-      } else if (message.type === "submitted") {
-        const count = message.count !== undefined ? message.count : 0;
-        submittedCount.innerText = `Số bài đã nộp: ${count}`;
-        directSubmittedCount.innerText = `Số bài đã nộp: ${count}`;
-        if (isAdmin && message.results) {
-          resultsBody.innerHTML = "";
-          message.results.forEach(result => {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `
-              <td class="border p-2">${result.username || 'Unknown'}</td>
-              <td class="border p-2">${result.score || 0}</td>
-              <td class="border p-2">${result.submittedAt ? new Date(result.submittedAt).toLocaleString() : 'N/A'}</td>
-            `;
-            resultsBody.appendChild(tr);
-          });
-          resultsTable.classList.remove("hidden");
-        }
-      } else if (message.type === "start") {
-        isAdminControlled = true;
-        timeテムLeft = message.timeLimit || 7200;
-        if (!isAdmin) {
-          hideAllScreens();
-          quizContainer.classList.remove("hidden");
-          timerDisplay.classList.remove("hidden");
-          audio.classList.remove("hidden");
-          loadAudio(1);
-          loadImages(1);
-          startTimer();
-          currentQuizPart = 0;
-          downloadNotice.classList.add("hidden");
-          notification.innerText = "Bài thi đã bắt đầu!";
-        }
-      } else if (message.type === "end") {
-        if (!isAdmin) {
-          submitQuiz();
-          notification.innerText = "Bài thi đã kết thúc!";
-        }
-      } else if (message.type === "error") {
-        notification.innerText = message.message;
-      }
-    } catch (error) {
-      console.error("Error handling WebSocket message:", error);
-      notification.innerText = "Lỗi khi xử lý thông tin từ server. Vui lòng kiểm tra kết nối.";
+  try {
+    if (!event.data) {
+      console.warn("Received empty WebSocket message");
+      return;
     }
+    const message = JSON.parse(event.data);
+    if (message.type === "quizStatus") {
+      quizStatus.innerText = message.quizId ? `Đề thi hiện tại: ${message.quizName}` : "Chưa có đề thi được chọn.";
+      selectedQuizId = message.quizId;
+      if (isAdmin && message.quizId) {
+        assignBtn.classList.remove("hidden");
+        directTestBtn.classList.remove("hidden");
+      }
+      loadQuizzes();
+    } else if (message.type === "participants" || message.type === "participantCount") {
+      participantCount.innerText = `Số người tham gia: ${message.count || 0}`;
+      directParticipantCount.innerText = `Số người tham gia: ${message.count || 0}`;
+    } else if (message.type === "submitted" || message.type === "submittedCount") {
+      const count = message.count !== undefined ? message.count : 0;
+      submittedCount.innerText = `Số bài đã nộp: ${count}`;
+      directSubmittedCount.innerText = `Số bài đã nộp: ${count}`;
+      if (isAdmin && message.results) {
+        resultsBody.innerHTML = "";
+        message.results.forEach(result => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td class="border p-2">${result.username || 'Unknown'}</td>
+            <td class="border p-2">${result.score || 0}</td>
+            <td class="border p-2">${result.submittedAt ? new Date(result.submittedAt).toLocaleString() : 'N/A'}</td>
+          `;
+          resultsBody.appendChild(tr);
+        });
+        resultsTable.classList.remove("hidden");
+      }
+    } else if (message.type === "start") {
+      isAdminControlled = true;
+      timeLeft = message.timeLimit || 7200;
+      if (!isAdmin) {
+        hideAllScreens();
+        quizContainer.classList.remove("hidden");
+        timerDisplay.classList.remove("hidden");
+        audio.classList.remove("hidden");
+        loadAudio(1);
+        loadImages(1);
+        startTimer();
+        currentQuizPart = 0;
+        downloadNotice.classList.add("hidden");
+        notification.innerText = "Bài thi đã bắt đầu!";
+      }
+    } else if (message.type === "end") {
+      if (!isAdmin) {
+        submitQuiz();
+        notification.innerText = "Bài thi đã kết thúc!";
+      } else {
+        fetchDirectResults(); // Tải kết quả khi admin kết thúc kiểm tra
+      }
+    } else if (message.type === "error") {
+      notification.innerText = message.message;
+    }
+  } catch (error) {
+    console.error("Error handling WebSocket message:", error);
+    notification.innerText = "Lỗi khi xử lý thông tin từ server. Vui lòng kiểm tra kết nối.";
   }
+}
 
   async function logout() {
     try {
