@@ -54,6 +54,7 @@
         <button onclick="createNewQuiz()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mr-2">Tạo đề mới</button>
         <button onclick="showUploadQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Nhập đề thi</button>
         <button onclick="showHistoryScreen()" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 mr-2">Xem lịch sử điểm</button>
+        <button onclick="clearDatabase()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 mr-2">Xóa database cũ</button>
       </div>
       <div id="admin-controls" class="mt-4 hidden">
         <div id="participant-count" class="text-lg font-semibold mb-2"></div>
@@ -531,98 +532,33 @@
 
     studentNameForm.onsubmit = async (e) => {
       e.preventDefault();
-      console.log("Student login form submitted");
       const nameInput = document.getElementById("student-name");
       const name = nameInput.value.trim();
       
       if (!name) {
         notification.innerText = "Vui lòng nhập tên!";
-        console.log("Error: Empty name input");
         return;
       }
-
       if (name.length > 50) {
         notification.innerText = "Tên không được dài quá 50 ký tự!";
-        console.log("Error: Name too long");
         return;
       }
 
-      const maxRetries = 3;
-      let attempt = 0;
+      user = { name };
+      isAdmin = false;
+      hideAllScreens();
+      quizListScreen.classList.remove("hidden");
+      adminOptions.classList.add("hidden");
+      adminControls.classList.add("hidden");
+      downloadNotice.classList.add("hidden");
 
-      while (attempt < maxRetries) {
-        try {
-          console.log(`Attempt ${attempt + 1}: Checking username for:`, name);
-          const res = await fetch("/check-username", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username: name }),
-          });
-
-          if (!res.ok) {
-            const errorData = await res.json().catch(() => ({}));
-            console.error(`HTTP error! Status: ${res.status}, Response:`, errorData);
-            if (res.status === 409) {
-              notification.innerText = errorData.message || "Tên này đang được sử dụng bởi người khác. Vui lòng chọn tên khác!";
-              return;
-            }
-            throw new Error(`Lỗi server: ${res.status} ${res.statusText}`);
-          }
-
-          const result = await res.json();
-          console.log("Username check result:", result);
-
-          if (result.exists) {
-            notification.innerText = result.message || "Tên này đang được sử dụng bởi người khác. Vui lòng chọn tên khác!";
-            console.log("Error: Username in use");
-            return;
-          }
-
-          user = { name };
-          isAdmin = false;
-          console.log("Student login successful, user:", user);
-
-          const loginRes = await fetch("/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username: name }),
-          });
-          if (!loginRes.ok) {
-            throw new Error("Lỗi khi đăng nhập");
-          }
-
-          hideAllScreens();
-          quizListScreen.classList.remove("hidden");
-          adminOptions.classList.add("hidden");
-          adminControls.classList.add("hidden");
-          downloadNotice.classList.add("hidden");
-
-          console.log("Initializing WebSocket");
-          initializeWebSocket();
-
-          console.log("Loading quizzes");
-          await loadQuizzes().catch(err => {
-            console.error("Error loading quizzes:", err);
-            notification.innerText = "Đăng nhập thành công nhưng không thể tải danh sách đề thi. Vui lòng thử lại.";
-            quizList.innerHTML = "<p>Lỗi khi tải danh sách đề thi. Vui lòng làm mới trang.</p>";
-          });
-
-          return;
-
-        } catch (error) {
-          console.error(`Attempt ${attempt + 1} failed:`, error);
-          attempt++;
-          if (attempt === maxRetries) {
-            let errorMessage = "Lỗi khi đăng nhập. Vui lòng kiểm tra kết nối và thử lại.";
-            if (error.message.includes("Failed to fetch")) {
-              errorMessage = "Không thể kết nối đến server. Vui lòng kiểm tra mạng.";
-            } else if (error.message.includes("SyntaxError")) {
-              errorMessage = "Lỗi phản hồi từ server. Vui lòng liên hệ quản trị viên.";
-            }
-            notification.innerText = errorMessage;
-          }
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+      initializeWebSocket();
+      try {
+        await loadQuizzes();
+      } catch (error) {
+        console.error("Error loading quizzes:", error);
+        notification.innerText = "Không thể tải danh sách đề thi. Vui lòng thử lại.";
+        quizList.innerHTML = "<p>Lỗi khi tải danh sách đề thi. Vui lòng làm mới trang.</p>";
       }
     };
 
@@ -715,6 +651,25 @@
       }
     }
 
+    async function clearDatabase() {
+      if (!confirm("Bạn có chắc muốn xóa toàn bộ database? Hành động này không thể hoàn tác!")) return;
+      try {
+        const res = await fetch("/clear-database", {
+          method: "DELETE",
+        });
+        const result = await res.json();
+        notification.innerText = result.message;
+        if (res.ok) {
+          selectedQuizId = null;
+          loadQuizzes();
+          if (isAdmin) saveAdminState();
+        }
+      } catch (error) {
+        console.error("Error clearing database:", error);
+        notification.innerText = "Lỗi khi xóa database. Vui lòng thử lại.";
+      }
+    }
+
     async function fetchWithRetry(url, retries = 5, delay = 2000) {
       for (let i = 0; i < retries; i++) {
         try {
@@ -738,7 +693,6 @@
           const statusRes = await fetchWithRetry('/quiz-status');
           const status = await statusRes.json();
           currentQuizId = status.quizId || currentQuizId;
-          console.log("Current Quiz ID from /quiz-status:", currentQuizId);
         } catch (statusError) {
           console.warn("Failed to fetch quiz status:", statusError);
           notification.innerText = "Không thể lấy trạng thái đề thi. Vui lòng thử lại sau.";
@@ -751,7 +705,6 @@
             const div = document.createElement("div");
             div.className = "flex items-center space-x-2";
             const isSelected = currentQuizId === quiz.quizId;
-            console.log(`Quiz: ${quiz.quizName}, ID: ${quiz.quizId}, Selected: ${isSelected}`);
             if (isAdmin) {
               div.innerHTML = `
                 <span class="text-lg font-medium">${quiz.quizName}${isSelected ? ' ✅' : ''}</span>
@@ -1151,7 +1104,7 @@
           backToQuizList();
         }
       } catch (error) {
-        console.error("Error saving quiz      quiz:", error);
+        console.error("Error saving quiz:", error);
         notification.innerText = "Lỗi khi lưu đề thi. Vui lòng thử lại.";
       }
     }
@@ -1177,7 +1130,7 @@
     async function submitQuiz() {
       if (!user || !user.name) {
         console.error("No user logged in");
-        notification.innerText = "Lỗi: Vui lòng đăng nhập lại.";
+        notification.innerText = "Lỗi: Vui lòng nhập tên lại.";
         showWelcomeScreen();
         return;
       }
@@ -1187,7 +1140,6 @@
       formData.forEach((val, key) => answers[key] = val);
 
       try {
-        console.log("Submitting quiz for user:", user.name);
         const res = await fetch("/submit", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1196,13 +1148,10 @@
 
         if (!res.ok) {
           const errorData = await res.json().catch(() => ({}));
-          console.error(`HTTP error! Status: ${res.status}, Response:`, errorData);
           throw new Error(errorData.message || `Lỗi server: ${res.status}`);
         }
 
         const result = await res.json();
-        console.log("Submit result:", result);
-
         hideAllScreens();
         resultScreen.classList.remove("hidden");
         timerDisplay.classList.add("hidden");
@@ -1214,21 +1163,13 @@
 
         if (isAdminControlled && socket && socket.readyState === WebSocket.OPEN) {
           socket.send(JSON.stringify({ type: "submitted", username: user.name }));
-          console.log("Sent submitted notification via WebSocket");
         }
 
         downloadNotice.classList.remove("hidden");
         showDownloadNotice();
-
       } catch (error) {
         console.error("Error submitting quiz:", error);
-        let errorMessage = "Lỗi khi nộp bài. Vui lòng thử lại.";
-        if (error.message.includes("Failed to fetch")) {
-          errorMessage = "Không thể kết nối đến server. Vui lòng kiểm tra mạng.";
-        } else if (error.message.includes("SyntaxError")) {
-          errorMessage = "Lỗi phản hồi từ server. Vui lòng liên hệ quản trị viên.";
-        }
-        notification.innerText = errorMessage;
+        notification.innerText = "Lỗi khi nộp bài. Vui lòng thử lại.";
       }
     }
 
@@ -1308,7 +1249,6 @@
     function handleWebSocketMessage(event) {
       try {
         const message = JSON.parse(event.data);
-        console.log("WebSocket message received:", message);
         if (message.type === "quizStatus") {
           quizStatus.innerText = message.quizId ? `Đề thi hiện tại: ${message.quizName}` : "Chưa có đề thi được chọn.";
           selectedQuizId = message.quizId;
