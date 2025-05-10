@@ -263,7 +263,7 @@
     let isAdminControlled = false;
     let selectedQuizId = null;
     let isDirectTestMode = false;
-    let isTestEnded = false; // Biến kiểm tra trạng thái kết thúc kiểm tra
+    let isTestEnded = false;
     const welcomeScreen = document.getElementById("welcome-screen");
     const adminLogin = document.getElementById("admin-login");
     const studentLogin = document.getElementById("student-login");
@@ -306,6 +306,93 @@
     let currentQuizPart = 0;
     const partAnswerCounts = [6, 25, 39, 30, 30, 16, 54];
 
+    // Lưu trạng thái admin vào localStorage
+    function saveAdminState() {
+      if (isAdmin && user) {
+        localStorage.setItem("adminState", JSON.stringify({
+          user: user,
+          isAdmin: true,
+          screen: getCurrentScreen(),
+          selectedQuizId: selectedQuizId,
+          isDirectTestMode: isDirectTestMode,
+          isTestEnded: isTestEnded,
+          currentAdminStep: currentAdminStep
+        }));
+      }
+    }
+
+    // Lấy màn hình hiện tại
+    function getCurrentScreen() {
+      if (!quizListScreen.classList.contains("hidden")) return "quiz-list-screen";
+      if (!directTestScreen.classList.contains("hidden")) return "direct-test-screen";
+      if (!uploadQuizzesSection.classList.contains("hidden")) return "upload-quizzes";
+      if (!document.getElementById("admin-step-audio").classList.contains("hidden")) return "admin-step-audio";
+      for (let i = 1; i <= 7; i++) {
+        if (!document.getElementById(`admin-step-part${i}`).classList.contains("hidden")) {
+          return `admin-step-part${i}`;
+        }
+      }
+      return "quiz-list-screen";
+    }
+
+    // Khôi phục trạng thái admin từ localStorage
+    async function restoreAdminState() {
+      const adminState = localStorage.getItem("adminState");
+      if (adminState) {
+        const state = JSON.parse(adminState);
+        if (state.isAdmin && state.user) {
+          user = state.user;
+          isAdmin = true;
+          selectedQuizId = state.selectedQuizId;
+          isDirectTestMode = state.isDirectTestMode;
+          isTestEnded = state.isTestEnded;
+          currentAdminStep = state.currentAdminStep;
+
+          // Ẩn tất cả màn hình
+          welcomeScreen.classList.add("hidden");
+          adminLogin.classList.add("hidden");
+          studentLogin.classList.add("hidden");
+          quizListScreen.classList.add("hidden");
+          directTestScreen.classList.add("hidden");
+          uploadQuizzesSection.classList.add("hidden");
+          document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
+
+          // Hiển thị màn hình đúng
+          if (state.screen === "quiz-list-screen") {
+            quizListScreen.classList.remove("hidden");
+            adminOptions.classList.remove("hidden");
+            adminControls.classList.remove("hidden");
+            if (selectedQuizId) {
+              assignBtn.classList.remove("hidden");
+              directTestBtn.classList.remove("hidden");
+            }
+            await loadQuizzes();
+          } else if (state.screen === "direct-test-screen") {
+            directTestScreen.classList.remove("hidden");
+            endDirectTestBtn.disabled = isTestEnded;
+            if (isTestEnded) {
+              await fetchDirectResults();
+            }
+          } else if (state.screen === "upload-quizzes") {
+            uploadQuizzesSection.classList.remove("hidden");
+          } else if (state.screen.startsWith("admin-step-")) {
+            document.getElementById(state.screen).classList.remove("hidden");
+          }
+
+          initializeWebSocket();
+          downloadNotice.classList.add("hidden");
+        }
+      } else {
+        downloadNotice.classList.remove("hidden");
+        startDownloadNotice();
+      }
+    }
+
+    // Xóa trạng thái admin khi đăng xuất
+    function clearAdminState() {
+      localStorage.removeItem("adminState");
+    }
+
     function showDownloadNotice() {
       downloadNotice.classList.remove("hidden");
       downloadNotice.classList.remove("translate-y-[-10px]");
@@ -335,6 +422,7 @@
       studentLogin.classList.add("hidden");
       notification.innerText = "";
       downloadNotice.classList.add("hidden");
+      saveAdminState();
     }
 
     function showStudentLogin() {
@@ -361,10 +449,12 @@
       selectedQuizId = null;
       isDirectTestMode = false;
       isTestEnded = false;
+      currentAdminStep = 0;
       if (socket) {
         socket.close();
         socket = null;
       }
+      clearAdminState();
       downloadNotice.classList.remove("hidden");
       startDownloadNotice();
     }
@@ -409,6 +499,7 @@
         initializeWebSocket();
         await loadQuizzes();
         downloadNotice.classList.add("hidden");
+        saveAdminState();
       } catch (error) {
         console.error("Error during Admin login:", error);
         notification.innerText = "Đăng nhập Admin thất bại. Vui lòng thử lại hoặc kiểm tra Client ID.";
@@ -436,7 +527,7 @@
       } catch (error) {
         console.error("Error during Student login:", error);
         notification.innerText = "Đăng nhập học sinh thất bại. Vui lòng thử lại.";
-        showWelcomeShield();
+        showWelcomeScreen();
       }
     };
 
@@ -454,18 +545,21 @@
       directResultsTable.classList.add("hidden");
       downloadNotice.classList.add("hidden");
       loadQuizzes();
+      saveAdminState();
     }
 
     function createNewQuiz() {
       quizListScreen.classList.add("hidden");
       document.getElementById("admin-step-audio").classList.remove("hidden");
       downloadNotice.classList.add("hidden");
+      saveAdminState();
     }
 
     function showUploadQuizzes() {
       quizListScreen.classList.add("hidden");
       uploadQuizzesSection.classList.remove("hidden");
       downloadNotice.classList.add("hidden");
+      saveAdminState();
     }
 
     async function uploadQuizzes() {
@@ -527,6 +621,13 @@
           throw new Error(`HTTP error! Status: ${res.status}`);
         }
         const quizzes = await res.json();
+        let currentQuizId = null;
+        // Lấy quizId được chọn hiện tại từ server
+        const statusRes = await fetch('/quiz-status');
+        if (statusRes.ok) {
+          const status = await statusRes.json();
+          currentQuizId = status.quizId;
+        }
         quizList.innerHTML = "";
         if (quizzes.length === 0) {
           quizList.innerHTML = "<p>Chưa có đề thi nào.</p>";
@@ -534,16 +635,17 @@
           quizzes.forEach(quiz => {
             const div = document.createElement("div");
             div.className = "flex items-center space-x-2";
+            const isSelected = currentQuizId === quiz.quizId;
             if (isAdmin) {
               div.innerHTML = `
-                <span>${quiz.quizName}${selectedQuizId === quiz.quizId ? ' ✅' : ''}</span>
+                <span>${quiz.quizName}${isSelected ? ' ✅' : ''}</span>
                 <button onclick="selectQuiz('${quiz.quizId}')" class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">Chọn</button>
                 <button onclick="downloadQuizzes('${quiz.quizId}')" class="bg-purple-500 text-white px-2 py-1 rounded hover:bg-purple-600">Tải xuống</button>
                 <button onclick="deleteQuiz('${quiz.quizId}')" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Xóa</button>
               `;
             } else {
               div.innerHTML = `
-                <span>${quiz.quizName}</span>
+                <span>${quiz.quizName}${isSelected ? ' ✅' : ''}</span>
                 <button onclick="startQuiz('${quiz.quizId}')" class="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 ${quiz.isAssigned ? '' : 'hidden'}">Bắt đầu làm bài</button>
               `;
             }
@@ -568,6 +670,7 @@
         if (res.ok) {
           if (selectedQuizId === quizId) selectedQuizId = null;
           loadQuizzes();
+          saveAdminState();
         }
       } catch (error) {
         console.error("Error deleting quiz:", error);
@@ -589,6 +692,10 @@
           directTestBtn.classList.remove("hidden");
           loadQuizzes();
           notification.innerText = `Đã chọn đề: ${result.quizName}`;
+          if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: "quizSelected", quizId }));
+          }
+          saveAdminState();
         } else {
           notification.innerText = result.message;
         }
@@ -623,6 +730,7 @@
             socket.send(JSON.stringify({ type: "quizAssigned", quizId: selectedQuizId, timeLimit: timeLimitSeconds }));
           }
           loadQuizzes();
+          saveAdminState();
         } else {
           notification.innerText = result.message;
         }
@@ -662,6 +770,7 @@
             socket.send(JSON.stringify({ type: "start", timeLimit: timeLimitSeconds }));
           }
           notification.innerText = "Đã bắt đầu kiểm tra trực tiếp.";
+          saveAdminState();
         } else {
           notification.innerText = result.message;
         }
@@ -681,6 +790,7 @@
         isTestEnded = true;
         endDirectTestBtn.disabled = true;
         await fetchDirectResults();
+        saveAdminState();
       } else {
         notification.innerText = "Không thể gửi tín hiệu kết thúc. Kết nối WebSocket không hoạt động.";
       }
@@ -821,6 +931,7 @@
         document.getElementById("admin-step-part1").classList.remove("hidden");
         notification.innerText = "";
         currentAdminStep = step;
+        saveAdminState();
         return;
       }
 
@@ -847,6 +958,7 @@
       document.getElementById(`admin-step-part${step}`).classList.remove("hidden");
       notification.innerText = "";
       currentAdminStep = step;
+      saveAdminState();
     }
 
     function prevAdminStep(step) {
@@ -858,6 +970,7 @@
       }
       notification.innerText = "";
       currentAdminStep = step - 1;
+      saveAdminState();
     }
 
     async function saveQuiz() {
@@ -950,6 +1063,9 @@
         if (msg.type === "quizAssigned" && !isAdmin) {
           loadQuizzes();
         }
+        if (msg.type === "quizSelected") {
+          loadQuizzes();
+        }
         if (msg.type === "start") {
           if (!isAdmin) {
             isAdminControlled = true;
@@ -974,6 +1090,7 @@
             endDirectTestBtn.disabled = true;
             directResultsTable.classList.remove("hidden");
             fetchDirectResults();
+            saveAdminState();
           } else {
             resultsTable.classList.remove("hidden");
             fetchResults();
@@ -983,7 +1100,7 @@
           const who = msg.username === user.name ? "Bạn" : msg.username;
           notification.innerText = `${who} đã nộp bài.`;
           if (isAdmin && isDirectTestMode && isTestEnded) {
-            fetchDirectResults(); // Cập nhật danh sách kết quả ngay khi có bài nộp sau khi kết thúc
+            fetchDirectResults();
           }
         }
         if (msg.type === "participantCount") {
@@ -1045,7 +1162,7 @@
       try {
         const res = await fetch("/results");
         const results = await res.json();
-        directResultsBody.innerHTML = ""; // Xóa danh sách cũ để tránh lặp
+        directResultsBody.innerHTML = "";
         if (results.length === 0) {
           directResultsBody.innerHTML = '<tr><td colspan="3" class="border p-2 text-center">Chưa có kết quả.</td></tr>';
         } else {
@@ -1109,6 +1226,9 @@
     function logout() {
       showWelcomeScreen();
     }
+
+    // Khôi phục trạng thái admin khi tải trang
+    window.onload = restoreAdminState;
 
     // Start download notice on page load
     startDownloadNotice();
