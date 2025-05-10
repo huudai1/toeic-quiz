@@ -55,9 +55,6 @@
         <button onclick="showUploadQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Nhập đề thi</button>
         <button onclick="showHistoryScreen()" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 mr-2">Xem lịch sử điểm</button>
       </div>
-      <div id="student-options" class="mt-4 hidden">
-        <button onclick="refreshQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Làm mới</button>
-      </div>
       <div id="admin-controls" class="mt-4 hidden">
         <div id="participant-count" class="text-lg font-semibold mb-2"></div>
         <div id="submitted-count" class="text-lg font-semibold mb-2"></div>
@@ -290,7 +287,6 @@
     const studentNameForm = document.getElementById("student-name-form");
     const quizListScreen = document.getElementById("quiz-list-screen");
     const adminOptions = document.getElementById("admin-options");
-    const studentOptions = document.getElementById("student-options");
     const adminControls = document.getElementById("admin-controls");
     const uploadQuizzesSection = document.getElementById("upload-quizzes");
     const historyScreen = document.getElementById("history-screen");
@@ -343,18 +339,6 @@
       }
     }
 
-    function saveStudentState() {
-      if (!isAdmin && user) {
-        localStorage.setItem("studentState", JSON.stringify({
-          user: user,
-          isAdmin: false,
-          screen: getCurrentScreen(),
-          selectedQuizId: selectedQuizId,
-          currentQuizPart: currentQuizPart
-        }));
-      }
-    }
-
     function getCurrentScreen() {
       if (!welcomeScreen.classList.contains("hidden")) return "welcome-screen";
       if (!adminLogin.classList.contains("hidden")) return "admin-login";
@@ -391,7 +375,6 @@
             quizListScreen.classList.remove("hidden");
             adminOptions.classList.remove("hidden");
             adminControls.classList.remove("hidden");
-            studentOptions.classList.add("hidden");
             if (selectedQuizId) {
               assignBtn.classList.remove("hidden");
               directTestBtn.classList.remove("hidden");
@@ -420,46 +403,6 @@
       return false;
     }
 
-    async function restoreStudentState() {
-      const studentState = localStorage.getItem("studentState");
-      if (studentState) {
-        const state = JSON.parse(studentState);
-        if (!state.isAdmin && state.user) {
-          user = state.user;
-          isAdmin = false;
-          selectedQuizId = state.selectedQuizId;
-          currentQuizPart = state.currentQuizPart || 0;
-
-          hideAllScreens();
-          if (state.screen === "quiz-list-screen") {
-            quizListScreen.classList.remove("hidden");
-            adminOptions.classList.add("hidden");
-            adminControls.classList.add("hidden");
-            studentOptions.classList.remove("hidden");
-            await loadQuizzes();
-          } else if (state.screen === "quiz-container") {
-            quizContainer.classList.remove("hidden");
-            timerDisplay.classList.remove("hidden");
-            audio.classList.remove("hidden");
-            await loadImages(currentQuizPart + 1);
-            await loadAudio(currentQuizPart + 1);
-            document.querySelectorAll(".quiz-part").forEach(p => p.classList.add("hidden"));
-            document.getElementById(`quiz-part${currentQuizPart + 1}`).classList.remove("hidden");
-          } else if (state.screen === "result-screen") {
-            resultScreen.classList.remove("hidden");
-            notification.innerText = "Kết quả trước đó đã được lưu. Vui lòng liên hệ admin để xem chi tiết.";
-          }
-
-          initializeWebSocket();
-          downloadNotice.classList.add("hidden");
-          return true;
-        }
-      }
-      downloadNotice.classList.remove("hidden");
-      startDownloadNotice();
-      return false;
-    }
-
     function hideAllScreens() {
       welcomeScreen.classList.add("hidden");
       adminLogin.classList.add("hidden");
@@ -475,7 +418,6 @@
 
     function clearState() {
       localStorage.removeItem("adminState");
-      localStorage.removeItem("studentState");
     }
 
     function showDownloadNotice() {
@@ -514,7 +456,6 @@
       studentLogin.classList.remove("hidden");
       notification.innerText = "";
       downloadNotice.classList.add("hidden");
-      saveStudentState();
     }
 
     function showWelcomeScreen() {
@@ -549,9 +490,7 @@
         socket = new WebSocket(wsProtocol + location.host);
         socket.onopen = () => {
           console.log("WebSocket connected successfully.");
-          if (selectedQuizId) {
-            socket.send(JSON.stringify({ type: "requestQuizStatus" }));
-          }
+          socket.send(JSON.stringify({ type: "requestQuizStatus" }));
         };
         socket.onmessage = handleWebSocketMessage;
         socket.onerror = (error) => {
@@ -584,7 +523,6 @@
         quizListScreen.classList.remove("hidden");
         adminOptions.classList.remove("hidden");
         adminControls.classList.remove("hidden");
-        studentOptions.classList.add("hidden");
         initializeWebSocket();
         await loadQuizzes();
         downloadNotice.classList.add("hidden");
@@ -604,21 +542,29 @@
           notification.innerText = "Vui lòng nhập tên!";
           return;
         }
+        const res = await fetch("/check-username", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: name }),
+        });
+        const result = await res.json();
+        if (result.exists) {
+          notification.innerText = "Tên này đã được sử dụng. Vui lòng chọn tên khác!";
+          return;
+        }
         user = { name };
         isAdmin = false;
         hideAllScreens();
         quizListScreen.classList.remove("hidden");
         adminOptions.classList.add("hidden");
         adminControls.classList.add("hidden");
-        studentOptions.classList.remove("hidden");
         initializeWebSocket();
         await loadQuizzes();
         downloadNotice.classList.add("hidden");
-        saveStudentState();
       } catch (error) {
         console.error("Error during Student login:", error);
         notification.innerText = "Đăng nhập học sinh thất bại. Vui lòng thử lại.";
-        showWelcomeScreen();
+        showStudentLogin();
       }
     };
 
@@ -628,7 +574,6 @@
       if (isAdmin) {
         adminOptions.classList.remove("hidden");
         adminControls.classList.remove("hidden");
-        studentOptions.classList.add("hidden");
         if (selectedQuizId) {
           assignBtn.classList.remove("hidden");
           directTestBtn.classList.remove("hidden");
@@ -636,7 +581,6 @@
       } else {
         adminOptions.classList.add("hidden");
         adminControls.classList.add("hidden");
-        studentOptions.classList.remove("hidden");
       }
       notification.innerText = "";
       isDirectTestMode = false;
@@ -646,7 +590,6 @@
       downloadNotice.classList.add("hidden");
       loadQuizzes();
       if (isAdmin) saveAdminState();
-      else saveStudentState();
     }
 
     function createNewQuiz() {
@@ -714,7 +657,7 @@
       }
     }
 
-    async function fetchWithRetry(url, retries = 3, delay = 1000) {
+    async function fetchWithRetry(url, retries = 5, delay = 2000) {
       for (let i = 0; i < retries; i++) {
         try {
           const res = await fetch(url);
@@ -740,7 +683,7 @@
           console.log("Current Quiz ID from /quiz-status:", currentQuizId);
         } catch (statusError) {
           console.warn("Failed to fetch quiz status:", statusError);
-          notification.innerText = "Không thể lấy trạng thái đề thi, sử dụng trạng thái cục bộ.";
+          notification.innerText = "Không thể lấy trạng thái đề thi. Vui lòng thử lại sau.";
         }
         quizList.innerHTML = "";
         if (quizzes.length === 0) {
@@ -774,12 +717,6 @@
       }
     }
 
-    async function refreshQuizzes() {
-      notification.innerText = "Đang làm mới danh sách đề...";
-      await loadQuizzes();
-      notification.innerText = "Đã làm mới danh sách đề.";
-    }
-
     async function deleteQuiz(quizId) {
       if (!confirm("Bạn có chắc muốn xóa đề thi này?")) return;
       try {
@@ -792,7 +729,6 @@
           if (selectedQuizId === quizId) selectedQuizId = null;
           loadQuizzes();
           if (isAdmin) saveAdminState();
-          else saveStudentState();
         }
       } catch (error) {
         console.error("Error deleting quiz:", error);
@@ -938,7 +874,6 @@
           startTimer();
           currentQuizPart = 0;
           downloadNotice.classList.add("hidden");
-          saveStudentState();
         } else {
           notification.innerText = result.message;
         }
@@ -1157,7 +1092,8 @@
         notification.innerText = result.message;
         hideAllScreens();
         backToQuizList();
-      } catch (error) {
+      } 
+catch (error) {
         console.error("Error saving quiz:", error);
         notification.innerText = "Lỗi khi lưu đề thi. Vui lòng thử lại.";
       }
@@ -1167,11 +1103,22 @@
       try {
         const res = await fetch("/results");
         const results = await res.json();
+        // Filter unique results by username, keeping the latest result
+        const uniqueResults = [];
+        const seenUsernames = new Set();
+        results
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)) // Sort by timestamp descending
+          .forEach(result => {
+            if (!seenUsernames.has(result.username)) {
+              seenUsernames.add(result.username);
+              uniqueResults.push(result);
+            }
+          });
         historyBody.innerHTML = "";
-        if (results.length === 0) {
+        if (uniqueResults.length === 0) {
           historyBody.innerHTML = '<tr><td colspan="4" class="border p-2 text-center">Chưa có kết quả.</td></tr>';
         } else {
-          results.forEach(result => {
+          uniqueResults.forEach(result => {
             const tr = document.createElement("tr");
             tr.innerHTML = `
               <td class="border p-2"><input type="checkbox" class="result-checkbox" value="${result.resultId}"></td>
@@ -1228,7 +1175,6 @@
       loadAudio(part + 1);
       currentQuizPart = part;
       notification.innerText = "";
-      saveStudentState();
     }
 
     function prevQuizPart(part) {
@@ -1240,7 +1186,6 @@
       loadAudio(part);
       currentQuizPart = part - 1;
       notification.innerText = "";
-      saveStudentState();
     }
 
     function handleWebSocketMessage(event) {
@@ -1252,7 +1197,6 @@
         if (msg.type === "quizSelected") {
           selectedQuizId = msg.quizId;
           loadQuizzes();
-          if (!isAdmin) saveStudentState();
         }
         if (msg.type === "start") {
           if (!isAdmin) {
@@ -1267,7 +1211,6 @@
             startTimer();
             currentQuizPart = 0;
             downloadNotice.classList.add("hidden");
-            saveStudentState();
           } else if (isDirectTestMode) {
             directResultsTable.classList.add("hidden");
           }
@@ -1334,8 +1277,19 @@
       try {
         const res = await fetch("/results");
         const results = await res.json();
+        // Filter unique results by username, keeping the latest result
+        const uniqueResults = [];
+        const seenUsernames = new Set();
+        results
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+          .forEach(result => {
+            if (!seenUsernames.has(result.username)) {
+              seenUsernames.add(result.username);
+              uniqueResults.push(result);
+            }
+          });
         resultsBody.innerHTML = "";
-        results.forEach(result => {
+        uniqueResults.forEach(result => {
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td class="border p-2">${result.username}</td>
@@ -1354,11 +1308,22 @@
       try {
         const res = await fetch("/results");
         const results = await res.json();
+        // Filter unique results by username, keeping the latest result
+        const uniqueResults = [];
+        const seenUsernames = new Set();
+        results
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+          .forEach(result => {
+            if (!seenUsernames.has(result.username)) {
+              seenUsernames.add(result.username);
+              uniqueResults.push(result);
+            }
+          });
         directResultsBody.innerHTML = "";
-        if (results.length === 0) {
+        if (uniqueResults.length === 0) {
           directResultsBody.innerHTML = '<tr><td colspan="3" class="border p-2 text-center">Chưa có kết quả.</td></tr>';
         } else {
-          results.forEach(result => {
+          uniqueResults.forEach(result => {
             const tr = document.createElement("tr");
             tr.innerHTML = `
               <td class="border p-2">${result.username}</td>
@@ -1401,7 +1366,6 @@
           }
           downloadNotice.classList.remove("hidden");
           showDownloadNotice();
-          saveStudentState();
         } else {
           notification.innerText = result.message || "Lỗi khi nộp bài!";
         }
@@ -1421,10 +1385,7 @@
     }
 
     window.onload = async () => {
-      if (await restoreAdminState()) {
-        return;
-      }
-      await restoreStudentState();
+      await restoreAdminState();
     };
 
     startDownloadNotice();
