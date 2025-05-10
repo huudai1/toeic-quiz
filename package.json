@@ -27,6 +27,6 @@
   },
   "homepage": "https://github.com/huudai1/toeic-quiz#readme",
   "devDependencies": {
-    "tailwindcss": "^3.4.1"
+    "tailwindcss": "^3.4.17"
   }
 }
