@@ -491,7 +491,6 @@
         socket.onopen = () => {
           console.log("WebSocket connected successfully.");
           socket.send(JSON.stringify({ type: "requestQuizStatus" }));
-          // Modified: Notify server of user login if not admin
           if (!isAdmin && user && user.name) {
             socket.send(JSON.stringify({ type: "userLogin", username: user.name }));
           }
@@ -554,7 +553,7 @@
       }
 
       try {
-        // Modified: Check for concurrent username usage only
+        // Check for concurrent username usage
         const res = await fetch("/check-concurrent-username", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -562,12 +561,26 @@
         });
 
         if (!res.ok) {
-          throw new Error(`HTTP error! Status: ${res.status}`);
+          console.warn(`Username check failed with status: ${res.status}. Proceeding with login.`);
+          // Fallback: Assume username is valid if server doesn't explicitly reject
         }
 
-        const result = await res.json();
+        const result = await res.json().catch(() => ({}));
         if (result.isActive) {
-          notification.innerText = "Tên này hiện đang được sử dụng bởi người khác. Vui lòng chọn tên khác hoặc đợi người đó đăng xuất.";
+          notification.innerText = "Tên này hiện đang được sử dụng. Vui lòng chọn tên khác hoặc đợi một lát.";
+          return;
+        }
+
+        // Register username with server
+        const registerRes = await fetch("/register-username", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: name }),
+        });
+
+        if (!registerRes.ok) {
+          console.error(`Failed to register username: ${registerRes.status}`);
+          notification.innerText = "Lỗi khi đăng ký tên. Vui lòng thử lại.";
           return;
         }
 
@@ -586,12 +599,11 @@
           quizList.innerHTML = "<p>Lỗi khi tải danh sách đề thi.</p>";
         });
 
-        // Clear input and notification for smooth transition
         nameInput.value = "";
         notification.innerText = "";
       } catch (error) {
         console.error("Error during student login:", error);
-        notification.innerText = "Lỗi khi đăng nhập. Vui lòng kiểm tra kết nối và thử lại.";
+        notification.innerText = "Lỗi khi đăng nhập. Vui lòng thử tên khác hoặc kiểm tra kết nối.";
       }
     };
 
@@ -1399,9 +1411,10 @@
     };
 
     async function logout() {
-      if (!isAdmin && user && user.name && socket && socket.readyState === WebSocket.OPEN) {
-        // Modified: Notify server of user logout to release username
-        socket.send(JSON.stringify({ type: "userLogout", username: user.name }));
+      if (!isAdmin && user && user.name) {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: "userLogout", username: user.name }));
+        }
         try {
           await fetch("/logout-user", {
             method: "POST",
