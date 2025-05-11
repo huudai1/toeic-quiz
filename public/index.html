@@ -130,27 +130,29 @@
     <p id="notification" class="text-red-500 mb-4"></p>
     <div class="space-y-4">
       <div>
-        <label for="quiz-name" class="block text-lg">Tên đề thi:</label>
-        <input id="quiz-name" type="text" class="border p-2 rounded w-full">
+        <label for="quiz-name" class="block text-lg font-medium">Tên đề thi:</label>
+        <input id="quiz-name" type="text" class="border p-2 rounded w-full" placeholder="Nhập tên đề thi (tối đa 100 ký tự)" required>
       </div>
       <div>
-        <label for="audio-file-part1" class="block text-lg">File nghe Part 1:</label>
-        <input id="audio-file-part1" type="file" accept="audio/*">
+        <label for="audio-file-part1" class="block text-lg font-medium">File nghe Part 1:</label>
+        <input id="audio-file-part1" type="file" accept="audio/*" class="border p-2 rounded w-full">
       </div>
       <div>
-        <label for="audio-file-part2" class="block text-lg">File nghe Part 2:</label>
-        <input id="audio-file-part2" type="file" accept="audio/*">
+        <label for="audio-file-part2" class="block text-lg font-medium">File nghe Part 2:</label>
+        <input id="audio-file-part2" type="file" accept="audio/*" class="border p-2 rounded w-full">
       </div>
       <div>
-        <label for="audio-file-part3" class="block text-lg">File nghe Part 3:</label>
-        <input id="audio-file-part3" type="file" accept="audio/*">
+        <label for="audio-file-part3" class="block text-lg font-medium">File nghe Part 3:</label>
+        <input id="audio-file-part3" type="file" accept="audio/*" class="border p-2 rounded w-full">
       </div>
       <div>
-        <label for="audio-file-part4" class="block text-lg">File nghe Part 4:</label>
-        <input id="audio-file-part4" type="file" accept="audio/*">
+        <label for="audio-file-part4" class="block text-lg font-medium">File nghe Part 4:</label>
+        <input id="audio-file-part4" type="file" accept="audio/*" class="border p-2 rounded w-full">
       </div>
-      <button onclick="nextAdminStep(1)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-      <button onclick="backToQuizList()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      <div class="flex space-x-4">
+        <button onclick="nextAdminStep(1)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+        <button onclick="backToQuizList()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      </div>
     </div>
   </div>
 
@@ -159,15 +161,17 @@
     <p id="notification" class="text-red-500 mb-4"></p>
     <div class="space-y-4">
       <div>
-        <label for="images-part1" class="block text-lg">Ảnh Part 1:</label>
-        <input id="images-part1" type="file" accept="image/*" multiple>
+        <label for="images-part1" class="block text-lg font-medium">Ảnh Part 1:</label>
+        <input id="images-part1" type="file" accept="image/*" multiple class="border p-2 rounded w-full">
       </div>
       <div>
-        <label for="answer-key-part1" class="block text-lg">Đáp án Part 1 (6 đáp án, cách nhau bằng dấu phẩy):</label>
+        <label for="answer-key-part1" class="block text-lg font-medium">Đáp án Part 1 (6 đáp án, cách nhau bằng dấu phẩy):</label>
         <input id="answer-key-part1" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,D,A,B">
       </div>
-      <button onclick="nextAdminStep(2)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-      <button onclick="prevAdminStep(1)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      <div class="flex space-x-4">
+        <button onclick="nextAdminStep(2)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+        <button onclick="prevAdminStep(1)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      </div>
     </div>
   </div>
 
@@ -176,15 +180,17 @@
     <p id="notification" class="text-red-500 mb-4"></p>
     <div class="space-y-4">
       <div>
-        <label for="images-part2" class="block text-lg">Ảnh Part 2:</label>
-        <input id="images-part2" type="file" accept="image/*" multiple>
+        <label for="images-part2" class="block text-lg font-medium">Ảnh Part 2:</label>
+        <input id="images-part2" type="file" accept="image/*" multiple class="border p-2 rounded w-full">
       </div>
       <div>
-        <label for="answer-key-part2" class="block text-lg">Đáp án Part 2 (25 đáp án, cách nhau bằng dấu phẩy):</label>
+        <label for="answer-key-part2" class="block text-lg font-medium">Đáp án Part 2 (25 đáp án, cách nhau bằng dấu phẩy):</label>
         <input id="answer-key-part2" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,...">
       </div>
-      <button onclick="nextAdminStep(3)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-      <button onclick="prevAdminStep(2)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      <div class="flex space-x-4">
+        <button onclick="nextAdminStep(3)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+        <button onclick="prevAdminStep(2)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      </div>
     </div>
   </div>
 
@@ -193,15 +199,17 @@
     <p id="notification" class="text-red-500 mb-4"></p>
     <div class="space-y-4">
       <div>
-        <label for="images-part3" class="block text-lg">Ảnh Part 3:</label>
-        <input id="images-part3" type="file" accept="image/*" multiple>
+        <label for="images-part3" class="block text-lg font-medium">Ảnh Part 3:</label>
+        <input id="images-part3" type="file" accept="image/*" multiple class="border p-2 rounded w-full">
       </div>
       <div>
-        <label for="answer-key-part3" class="block text-lg">Đáp án Part 3 (39 đáp án, cách nhau bằng dấu phẩy):</label>
+        <label for="answer-key-part3" class="block text-lg font-medium">Đáp án Part 3 (39 đáp án, cách nhau bằng dấu phẩy):</label>
         <input id="answer-key-part3" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,...">
       </div>
-      <button onclick="nextAdminStep(4)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-      <button onclick="prevAdminStep(3)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      <div class="flex space-x-4">
+        <button onclick="nextAdminStep(4)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+        <button onclick="prevAdminStep(3)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      </div>
     </div>
   </div>
 
@@ -210,15 +218,17 @@
     <p id="notification" class="text-red-500 mb-4"></p>
     <div class="space-y-4">
       <div>
-        <label for="images-part4" class="block text-lg">Ảnh Part 4:</label>
-        <input id="images-part4" type="file" accept="image/*" multiple>
+        <label for="images-part4" class="block text-lg font-medium">Ảnh Part 4:</label>
+        <input id="images-part4" type="file" accept="image/*" multiple class="border p-2 rounded w-full">
       </div>
       <div>
-        <label for="answer-key-part4" class="block text-lg">Đáp án Part 4 (30 đáp án, cách nhau bằng dấu phẩy):</label>
+        <label for="answer-key-part4" class="block text-lg font-medium">Đáp án Part 4 (30 đáp án, cách nhau bằng dấu phẩy):</label>
         <input id="answer-key-part4" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,...">
       </div>
-      <button onclick="nextAdminStep(5)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-      <button onclick="prevAdminStep(4)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      <div class="flex space-x-4">
+        <button onclick="nextAdminStep(5)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+        <button onclick="prevAdminStep(4)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      </div>
     </div>
   </div>
 
@@ -227,15 +237,17 @@
     <p id="notification" class="text-red-500 mb-4"></p>
     <div class="space-y-4">
       <div>
-        <label for="images-part5" class="block text-lg">Ảnh Part 5:</label>
-        <input id="images-part5" type="file" accept="image/*" multiple>
+        <label for="images-part5" class="block text-lg font-medium">Ảnh Part 5:</label>
+        <input id="images-part5" type="file" accept="image/*" multiple class="border p-2 rounded w-full">
       </div>
       <div>
-        <label for="answer-key-part5" class="block text-lg">Đáp án Part 5 (30 đáp án, cách nhau bằng dấu phẩy):</label>
+        <label for="answer-key-part5" class="block text-lg font-medium">Đáp án Part 5 (30 đáp án, cách nhau bằng dấu phẩy):</label>
         <input id="answer-key-part5" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,...">
       </div>
-      <button onclick="nextAdminStep(6)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-      <button onclick="prevAdminStep(5)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      <div class="flex space-x-4">
+        <button onclick="nextAdminStep(6)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+        <button onclick="prevAdminStep(5)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      </div>
     </div>
   </div>
 
@@ -244,15 +256,17 @@
     <p id="notification" class="text-red-500 mb-4"></p>
     <div class="space-y-4">
       <div>
-        <label for="images-part6" class="block text-lg">Ảnh Part 6:</label>
-        <input id="images-part6" type="file" accept="image/*" multiple>
+        <label for="images-part6" class="block text-lg font-medium">Ảnh Part 6:</label>
+        <input id="images-part6" type="file" accept="image/*" multiple class="border p-2 rounded w-full">
       </div>
       <div>
-        <label for="answer-key-part6" class="block text-lg">Đáp án Part 6 (16 đáp án, cách nhau bằng dấu phẩy):</label>
+        <label for="answer-key-part6" class="block text-lg font-medium">Đáp án Part 6 (16 đáp án, cách nhau bằng dấu phẩy):</label>
         <input id="answer-key-part6" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,...">
       </div>
-      <button onclick="nextAdminStep(7)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-      <button onclick="prevAdminStep(6)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      <div class="flex space-x-4">
+        <button onclick="nextAdminStep(7)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+        <button onclick="prevAdminStep(6)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      </div>
     </div>
   </div>
 
@@ -261,15 +275,17 @@
     <p id="notification" class="text-red-500 mb-4"></p>
     <div class="space-y-4">
       <div>
-        <label for="images-part7" class="block text-lg">Ảnh Part 7:</label>
-        <input id="images-part7" type="file" accept="image/*" multiple>
+        <label for="images-part7" class="block text-lg font-medium">Ảnh Part 7:</label>
+        <input id="images-part7" type="file" accept="image/*" multiple class="border p-2 rounded w-full">
       </div>
       <div>
-        <label for="answer-key-part7" class="block text-lg">Đáp án Part 7 (54 đáp án, cách nhau bằng dấu phẩy):</label>
+        <label for="answer-key-part7" class="block text-lg font-medium">Đáp án Part 7 (54 đáp án, cách nhau bằng dấu phẩy):</label>
         <input id="answer-key-part7" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,...">
       </div>
-      <button onclick="saveQuiz()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Lưu đề thi</button>
-      <button onclick="prevAdminStep(7)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      <div class="flex space-x-4">
+        <button onclick="saveQuiz()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Lưu đề thi</button>
+        <button onclick="prevAdminStep(7)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+      </div>
     </div>
   </div>
 
@@ -1151,135 +1167,134 @@
     }
 
     async function saveQuiz() {
-  // Kiểm tra tên đề thi
-  const quizName = document.getElementById("quiz-name").value.trim();
-  if (!quizName) {
-    notification.innerText = "Vui lòng nhập tên đề thi!";
-    return;
-  }
-  if (quizName.length > 100) {
-    notification.innerText = "Tên đề thi không được dài quá 100 ký tự!";
-    return;
-  }
-
-  // Kiểm tra thông tin người dùng
-  if (!user || !user.email) {
-    notification.innerText = "Lỗi: Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.";
-    showAdminLogin();
-    return;
-  }
-
-  // Khởi tạo FormData
-  const formData = new FormData();
-
-  // Xử lý file audio
-  const audioInputs = [
-    { id: "audio-file-part1", part: 1 },
-    { id: "audio-file-part2", part: 2 },
-    { id: "audio-file-part3", part: 3 },
-    { id: "audio-file-part4", part: 4 },
-  ];
-  for (const { id, part } of audioInputs) {
-    const audioFile = document.getElementById(id).files[0];
-    if (!audioFile) {
-      notification.innerText = `Vui lòng tải file nghe cho Part ${part}!`;
-      return;
-    }
-    if (!audioFile.type.startsWith("audio/")) {
-      notification.innerText = `File nghe cho Part ${part} phải là định dạng audio (mp3, wav, v.v.)!`;
-      return;
-    }
-    if (audioFile.size > 50 * 1024 * 1024) {
-      notification.innerText = `File nghe cho Part ${part} không được lớn hơn 50MB!`;
-      return;
-    }
-    formData.append(`audio-part${part}`, audioFile);
-    console.log(`Đã thêm file audio Part ${part}: ${audioFile.name}, kích thước: ${audioFile.size} bytes`);
-  }
-
-  // Xử lý ảnh
-  for (let part = 1; part <= 7; part++) {
-    const imageInput = document.getElementById(`images-part${part}`);
-    const files = imageInput.files;
-    if (files.length === 0) {
-      notification.innerText = `Vui lòng tải ít nhất một ảnh cho Part ${part}!`;
-      return;
-    }
-    for (const file of files) {
-      if (!file.type.startsWith("image/")) {
-        notification.innerText = `File ảnh cho Part ${part} phải là định dạng ảnh (jpg, png, v.v.)!`;
+      // Kiểm tra tên đề thi
+      const quizName = document.getElementById("quiz-name").value.trim();
+      if (!quizName) {
+        notification.innerText = "Vui lòng nhập tên đề thi!";
         return;
       }
-      if (file.size > 10 * 1024 * 1024) {
-        notification.innerText = `File ảnh cho Part ${part} không được lớn hơn 10MB!`;
+      if (quizName.length > 100) {
+        notification.innerText = "Tên đề thi không được dài quá 100 ký tự!";
         return;
       }
-      formData.append(`images-part${part}`, file);
-      console.log(`Đã thêm file ảnh Part ${part}: ${file.name}, kích thước: ${file.size} bytes`);
-    }
-  }
 
-  // Xử lý đáp án
-  const answerKey = {};
-  let questionIndex = 1;
-  const partAnswerCounts = [6, 25, 39, 30, 30, 16, 54];
-  for (let part = 1; part <= 7; part++) {
-    const answerKeyInput = document.getElementById(`answer-key-part${part}`).value.trim();
-    if (!answerKeyInput) {
-      notification.innerText = `Vui lòng nhập đáp án cho Part ${part}!`;
-      return;
-    }
-    const answers = answerKeyInput
-      .replace(/\s+/g, '') // Bỏ khoảng trắng
-      .split(',')
-      .map(a => a.trim().toUpperCase())
-      .filter(a => a !== '');
-    const expectedCount = partAnswerCounts[part - 1];
-    if (answers.length !== expectedCount) {
-      notification.innerText = `Part ${part} phải có đúng ${expectedCount} đáp án, hiện có ${answers.length}!`;
-      return;
-    }
-    for (let i = 0; i < answers.length; i++) {
-      if (!['A', 'B', 'C', 'D'].includes(answers[i])) {
-        notification.innerText = `Đáp án Part ${part} phải là A, B, C hoặc D (câu ${i + 1}: ${answers[i]})!`;
+      // Kiểm tra thông tin người dùng
+      if (!user || !user.email) {
+        notification.innerText = "Lỗi: Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.";
+        showAdminLogin();
         return;
       }
-      answerKey[`q${questionIndex}`] = answers[i];
-      questionIndex++;
-    }
-    console.log(`Đáp án Part ${part}: [${answers.join(', ')}]`);
-  }
 
-  // Thêm metadata
-  formData.append("quizName", quizName);
-  formData.append("answerKey", JSON.stringify(answerKey));
-  formData.append("createdBy", user.email);
-  console.log("Metadata:", {
-    quizName,
-    createdBy: user.email,
-    answerKeyCount: Object.keys(answerKey).length
-  });
+      // Khởi tạo FormData
+      const formData = new FormData();
 
-  // Gửi yêu cầu
-  try {
-    console.log("Bắt đầu gửi yêu cầu lưu đề thi đến /save-quiz...");
-    const res = await fetchWithRetry("/save-quiz", {
-      method: "POST",
-      body: formData,
-    });
-    const result = await res.json();
-    if (res.ok) {
-      notification.innerText = result.message || "Lưu đề thi thành công!";
-      console.log("Lưu đề thi thành công:", result);
-      backToQuizList();
-    } else {
-      throw new Error(result.message || `Lỗi server: ${res.status}`);
+      // Xử lý file audio
+      const audioInputs = [
+        { id: "audio-file-part1", part: 1 },
+        { id: "audio-file-part2", part: 2 },
+        { id: "audio-file-part3", part: 3 },
+        { id: "audio-file-part4", part: 4 },
+      ];
+      for (const { id, part } of audioInputs) {
+        const audioFile = document.getElementById(id).files[0];
+        if (!audioFile) {
+          notification.innerText = `Vui lòng tải file nghe cho Part ${part}!`;
+          return;
+        }
+        if (!audioFile.type.startsWith("audio/")) {
+          notification.innerText = `File nghe Part ${part} phải là định dạng audio (mp3, wav, v.v.)!`;
+          return;
+        }
+        if (audioFile.size > 50 * 1024 * 1024) {
+          notification.innerText = `File nghe Part ${part} không được lớn hơn 50MB!`;
+          return;
+        }
+        formData.append(`audio-part${part}`, audioFile);
+        console.log(`Đã thêm file audio Part ${part}: ${audioFile.name}, kích thước: ${(audioFile.size / 1024 / 1024).toFixed(2)} MB`);
+      }
+
+      // Xử lý ảnh
+      for (let part = 1; part <= 7; part++) {
+        const imageInput = document.getElementById(`images-part${part}`);
+        const files = imageInput.files;
+        if (files.length === 0) {
+          notification.innerText = `Vui lòng tải ít nhất một ảnh cho Part ${part}!`;
+          return;
+        }
+        for (const file of files) {
+          if (!file.type.startsWith("image/")) {
+            notification.innerText = `File ảnh Part ${part} phải là định dạng ảnh (jpg, png, v.v.)!`;
+            return;
+          }
+          if (file.size > 10 * 1024 * 1024) {
+            notification.innerText = `File ảnh Part ${part} không được lớn hơn 10MB!`;
+            return;
+          }
+          formData.append(`images-part${part}`, file);
+          console.log(`Đã thêm file ảnh Part ${part}: ${file.name}, kích thước: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+        }
+      }
+
+      // Xử lý đáp án
+      const answerKey = {};
+      let questionIndex = 1;
+      for (let part = 1; part <= 7; part++) {
+        const answerKeyInput = document.getElementById(`answer-key-part${part}`).value.trim();
+        if (!answerKeyInput) {
+          notification.innerText = `Vui lòng nhập đáp án cho Part ${part}!`;
+          return;
+        }
+        const answers = answerKeyInput
+          .replace(/\s+/g, '') // Bỏ khoảng trắng
+          .split(',')
+          .map(a => a.trim().toUpperCase())
+          .filter(a => a !== '');
+        const expectedCount = partAnswerCounts[part - 1];
+        if (answers.length !== expectedCount) {
+          notification.innerText = `Part ${part} phải có đúng ${expectedCount} đáp án, hiện có ${answers.length}!`;
+          return;
+        }
+        for (let i = 0; i < answers.length; i++) {
+          if (!['A', 'B', 'C', 'D'].includes(answers[i])) {
+            notification.innerText = `Đáp án Part ${part} phải là A, B, C hoặc D (câu ${i + 1}: ${answers[i]})!`;
+            return;
+          }
+          answerKey[`q${questionIndex}`] = answers[i];
+          questionIndex++;
+        }
+        console.log(`Đáp án Part ${part} (${answers.length}): [${answers.join(', ')}]`);
+      }
+
+      // Thêm metadata
+      formData.append("quizName", quizName);
+      formData.append("answerKey", JSON.stringify(answerKey));
+      formData.append("createdBy", user.email);
+      console.log("Metadata:", {
+        quizName,
+        createdBy: user.email,
+        totalAnswers: Object.keys(answerKey).length
+      });
+
+      // Gửi yêu cầu
+      try {
+        console.log("Gửi yêu cầu lưu đề thi đến /save-quiz...");
+        const res = await fetchWithRetry("/save-quiz", {
+          method: "POST",
+          body: formData,
+        });
+        const result = await res.json();
+        if (res.ok) {
+          notification.innerText = result.message || "Lưu đề thi thành công!";
+          console.log("Lưu đề thi thành công:", result);
+          backToQuizList();
+        } else {
+          throw new Error(result.message || `Lỗi server: ${res.status}`);
+        }
+      } catch (error) {
+        console.error("Lỗi khi lưu đề thi:", error);
+        notification.innerText = `Lỗi khi lưu đề thi: ${error.message}. Vui lòng kiểm tra dữ liệu và thử lại.`;
+      }
     }
-  } catch (error) {
-    console.error("Lỗi khi lưu đề thi:", error);
-    notification.innerText = `Lỗi khi lưu đề thi: ${error.message}. Vui lòng kiểm tra dữ liệu và thử lại.`;
-  }
-}
 
     async function submitQuiz() {
       if (!user || !user.name) {
