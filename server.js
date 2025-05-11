@@ -3,8 +3,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const WebSocket = require('ws');
-const JSZip = require('jszip');
-const AdmZip = require('adm-zip');
+const archiver = require('archiver');
+const unzipper = require('unzipper');
 
 const app = express();
 const port = 3000;
@@ -607,28 +607,33 @@ app.get('/download-quiz-zip/:quizId', async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy đề thi' });
     }
 
-    const zip = new JSZip();
-    for (let audio of quiz.audioFiles) {
-      const content = await fs.readFile(audio.path);
-      zip.file(`audio/part${audio.part}${path.extname(audio.path)}`, content);
-    }
-    for (let image of quiz.imageFiles) {
-      const content = await fs.readFile(image.path);
-      zip.file(`images/part${image.part}/${path.basename(image.path)}`, content);
-    }
-    zip.file('answerKey.json', JSON.stringify(quiz.answerKey));
-    zip.file('quizInfo.json', JSON.stringify({
-      quizName: quiz.quizName,
-      createdBy: quiz.createdBy,
-      createdAt: quiz.createdAt,
-    }));
-
-    const content = await zip.generateAsync({ type: 'nodebuffer' });
     res.set({
       'Content-Type': 'application/zip',
       'Content-Disposition': `attachment; filename=quiz_${quizId}.zip`,
     });
-    res.send(content);
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.pipe(res);
+
+    // Thêm file audio
+    for (let audio of quiz.audioFiles) {
+      archive.file(audio.path, { name: `audio/part${audio.part}${path.extname(audio.path)}` });
+    }
+
+    // Thêm file ảnh
+    for (let image of quiz.imageFiles) {
+      archive.file(image.path, { name: `images/part${image.part}/${path.basename(image.path)}` });
+    }
+
+    // Thêm file JSON
+    archive.append(JSON.stringify(quiz.answerKey), { name: 'answerKey.json' });
+    archive.append(JSON.stringify({
+      quizName: quiz.quizName,
+      createdBy: quiz.createdBy,
+      createdAt: quiz.createdAt,
+    }), { name: 'quizInfo.json' });
+
+    archive.finalize();
   } catch (error) {
     console.error('Lỗi khi tải file ZIP:', error);
     res.status(500).json({ message: 'Lỗi server khi tải file ZIP' });
@@ -657,31 +662,30 @@ app.post('/upload-quizzes', upload.single('quizzes'), async (req, res) => {
 // Endpoint tải lên file ZIP
 app.post('/upload-quizzes-zip', upload.single('quizzes'), async (req, res) => {
   try {
-    const zip = new AdmZip(req.file.path);
-    const zipEntries = zip.getEntries();
+    const zipDir = await unzipper.Open.file(req.file.path);
     let quizInfo, answerKey;
     const audioFiles = [];
     const imageFiles = [];
 
-    for (let entry of zipEntries) {
-      if (entry.entryName === 'quizInfo.json') {
-        quizInfo = JSON.parse(zip.readAsText(entry));
-      } else if (entry.entryName === 'answerKey.json') {
-        answerKey = JSON.parse(zip.readAsText(entry));
-      } else if (entry.entryName.startsWith('audio/')) {
-        const part = parseInt(entry.entryName.match(/part(\d+)/)?.[1]);
+    for (let file of zipDir.files) {
+      if (file.path === 'quizInfo.json') {
+        quizInfo = JSON.parse(await file.buffer());
+      } else if (file.path === 'answerKey.json') {
+        answerKey = JSON.parse(await file.buffer());
+      } else if (file.path.startsWith('audio/')) {
+        const part = parseInt(file.path.match(/part(\d+)/)?.[1]);
         if (part) {
-          const fileName = `audio-part${part}-${Date.now()}${path.extname(entry.entryName)}`;
+          const fileName = `audio-part${part}-${Date.now()}${path.extname(file.path)}`;
           const filePath = path.join(__dirname, 'Uploads/audio', fileName);
-          await fs.writeFile(filePath, entry.getData());
+          await fs.writeFile(filePath, await file.buffer());
           audioFiles.push({ part, path: filePath });
         }
-      } else if (entry.entryName.startsWith('images/')) {
-        const part = parseInt(entry.entryName.match(/part(\d+)/)?.[1]);
+      } else if (file.path.startsWith('images/')) {
+        const part = parseInt(file.path.match(/part(\d+)/)?.[1]);
         if (part) {
-          const fileName = `images-part${part}-${Date.now()}${path.extname(entry.entryName)}`;
+          const fileName = `images-part${part}-${Date.now()}${path.extname(file.path)}`;
           const filePath = path.join(__dirname, 'Uploads/images', fileName);
-          await fs.writeFile(filePath, entry.getData());
+          await fs.writeFile(filePath, await file.buffer());
           imageFiles.push({ part, path: filePath });
         }
       }
@@ -693,8 +697,26 @@ app.post('/upload-quizzes-zip', upload.single('quizzes'), async (req, res) => {
     if (audioFiles.length < 4) {
       return res.status(400).json({ message: 'File ZIP thiếu file audio cho các phần' });
     }
-    if (imageFiles.length < 7) {
-      return res.status(400).json({ message: 'File ZIP thiếu file ảnh cho các phần' });
+    if (!imageFiles.some(img => img.part === 1) ||
+        !imageFiles.some(img => img.part === 2) ||
+        !imageFiles.some(img => img.part === 3) ||
+        !imageFiles.some(img => img.part === 4) ||
+        !imageFiles.some(img => img.part === 5) ||
+        !imageFiles.some(img => img.part === 6) ||
+        !imageFiles.some(img => img.part === 7)) {
+      return res.status(400).json({ message: 'File ZIP thiếu file ảnh cho một hoặc nhiều phần' });
+    }
+
+    // Kiểm tra số lượng câu hỏi trong answerKey
+    const expectedQuestions = 200;
+    const questionKeys = Object.keys(answerKey);
+    if (questionKeys.length !== expectedQuestions) {
+      return res.status(400).json({ message: `Đáp án phải có đúng ${expectedQuestions} câu hỏi!` });
+    }
+    for (let i = 1; i <= expectedQuestions; i++) {
+      if (!answerKey[`q${i}`] || !['A', 'B', 'C', 'D'].includes(answerKey[`q${i}`])) {
+        return res.status(400).json({ message: `Đáp án cho câu q${i} phải là A, B, C hoặc D!` });
+      }
     }
 
     const quizzes = JSON.parse(await fs.readFile(QUIZZES_FILE));
