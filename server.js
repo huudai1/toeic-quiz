@@ -7,31 +7,43 @@ const archiver = require('archiver');
 const unzipper = require('unzipper');
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000; // Sử dụng PORT từ Render hoặc mặc định 3000
 const wsPort = 8080;
 
 // Đường dẫn lưu trữ dữ liệu
-const QUIZZES_FILE = path.join(__dirname, 'data', 'quizzes.json');
-const STATUS_FILE = path.join(__dirname, 'data', 'status.json');
-const RESULTS_FILE = path.join(__dirname, 'data', 'results.json');
+const DATA_DIR = process.env.DATA_DIR || '/tmp/data'; // Sử dụng /tmp trên Render
+const UPLOADS_DIR = process.env.UPLOADS_DIR || '/tmp/Uploads'; // Thư mục tạm cho file upload
+const QUIZZES_FILE = path.join(DATA_DIR, 'quizzes.json');
+const STATUS_FILE = path.join(DATA_DIR, 'status.json');
+const RESULTS_FILE = path.join(DATA_DIR, 'results.json');
 
-// Khởi tạo file nếu chưa tồn tại
+// Khởi tạo thư mục và file
 async function initFiles() {
-  await fs.mkdir(path.join(__dirname, 'data'), { recursive: true });
   try {
-    await fs.access(QUIZZES_FILE);
-  } catch {
-    await fs.writeFile(QUIZZES_FILE, JSON.stringify([]));
-  }
-  try {
-    await fs.access(STATUS_FILE);
-  } catch {
-    await fs.writeFile(STATUS_FILE, JSON.stringify({}));
-  }
-  try {
-    await fs.access(RESULTS_FILE);
-  } catch {
-    await fs.writeFile(RESULTS_FILE, JSON.stringify([]));
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    await fs.mkdir(path.join(UPLOADS_DIR, 'audio'), { recursive: true });
+    await fs.mkdir(path.join(UPLOADS_DIR, 'images'), { recursive: true });
+
+    try {
+      await fs.access(QUIZZES_FILE);
+    } catch {
+      await fs.writeFile(QUIZZES_FILE, JSON.stringify([]));
+      console.log('Created quizzes.json');
+    }
+    try {
+      await fs.access(STATUS_FILE);
+    } catch {
+      await fs.writeFile(STATUS_FILE, JSON.stringify({}));
+      console.log('Created status.json');
+    }
+    try {
+      await fs.access(RESULTS_FILE);
+    } catch {
+      await fs.writeFile(RESULTS_FILE, JSON.stringify([]));
+      console.log('Created results.json');
+    }
+  } catch (error) {
+    console.error('Error initializing files:', error);
   }
 }
 initFiles();
@@ -42,16 +54,17 @@ const storage = multer.diskStorage({
     const fieldName = file.fieldname;
     let dir;
     if (fieldName.startsWith('audio-part')) {
-      dir = path.join(__dirname, 'Uploads/audio');
+      dir = path.join(UPLOADS_DIR, 'audio');
     } else if (fieldName.startsWith('images-part')) {
-      dir = path.join(__dirname, 'Uploads/images');
+      dir = path.join(UPLOADS_DIR, 'images');
     } else {
-      dir = path.join(__dirname, 'Uploads');
+      dir = UPLOADS_DIR;
     }
     try {
       await fs.mkdir(dir, { recursive: true });
       cb(null, dir);
     } catch (err) {
+      console.error(`Error creating directory ${dir}:`, err);
       cb(err);
     }
   },
@@ -81,7 +94,7 @@ const upload = multer({
 
 // Middleware
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'Uploads')));
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 // WebSocket Server
 const wss = new WebSocket.Server({ port: wsPort });
@@ -188,7 +201,7 @@ app.post('/save-quiz', upload.fields([
   { name: 'images-part7' },
 ]), async (req, res) => {
   try {
-    console.log('Nhận yêu cầu lưu đề thi...');
+    console.log('Nhận yêu cầu lưu đề thi:', req.body);
     const { quizName, answerKey, createdBy } = req.body;
     const files = req.files;
 
@@ -233,7 +246,7 @@ app.post('/save-quiz', upload.fields([
       return res.status(400).json({ message: 'Đáp án phải là định dạng JSON hợp lệ!' });
     }
 
-    const expectedQuestions = 200; // Tổng số câu hỏi (6 + 25 + 39 + 30 + 30 + 16 + 54)
+    const expectedQuestions = 200;
     const questionKeys = Object.keys(parsedAnswerKey);
     if (questionKeys.length !== expectedQuestions) {
       console.error(`Số lượng đáp án không đúng: ${questionKeys.length}, cần: ${expectedQuestions}`);
@@ -268,7 +281,13 @@ app.post('/save-quiz', upload.fields([
     });
 
     // Lưu đề thi vào file JSON
-    const quizzes = JSON.parse(await fs.readFile(QUIZZES_FILE));
+    let quizzes = [];
+    try {
+      quizzes = JSON.parse(await fs.readFile(QUIZZES_FILE));
+    } catch (error) {
+      console.error('Error reading quizzes.json:', error);
+      quizzes = [];
+    }
     const newQuiz = {
       _id: await generateId(),
       quizName,
@@ -279,9 +298,14 @@ app.post('/save-quiz', upload.fields([
       createdAt: new Date().toISOString(),
     };
     quizzes.push(newQuiz);
-    await fs.writeFile(QUIZZES_FILE, JSON.stringify(quizzes));
-    console.log(`Đã lưu đề thi: ${quizName}`);
-    res.status(200).json({ message: 'Lưu đề thi thành công!' });
+    try {
+      await fs.writeFile(QUIZZES_FILE, JSON.stringify(quizzes, null, 2));
+      console.log(`Đã lưu đề thi: ${quizName}`);
+      res.status(200).json({ message: 'Lưu đề thi thành công!' });
+    } catch (error) {
+      console.error('Error writing to quizzes.json:', error);
+      return res.status(500).json({ message: `Lỗi khi lưu file quizzes.json: ${error.message}` });
+    }
   } catch (error) {
     console.error('Lỗi khi lưu đề thi:', error);
     res.status(500).json({ message: `Lỗi server khi lưu đề thi: ${error.message}` });
@@ -292,7 +316,12 @@ app.post('/save-quiz', upload.fields([
 app.get('/quizzes', async (req, res) => {
   try {
     const email = req.query.email;
-    const quizzes = JSON.parse(await fs.readFile(QUIZZES_FILE));
+    let quizzes = [];
+    try {
+      quizzes = JSON.parse(await fs.readFile(QUIZZES_FILE));
+    } catch (error) {
+      console.error('Error reading quizzes.json:', error);
+    }
     const status = JSON.parse(await fs.readFile(STATUS_FILE));
     const filteredQuizzes = email ? quizzes.filter(q => q.createdBy === email) : quizzes;
     res.json(filteredQuizzes.map(quiz => ({
@@ -379,7 +408,7 @@ app.post('/select-quiz', async (req, res) => {
       quizId,
       quizName: quiz.quizName,
     });
-    res.json({ message: 'Đã chọn đề thi', quizName: quiz.quizName, timeLimit: status.timeLimit });
+    res.json({ message: 'Đã chọn đề thi', quizName: quiz.quizName });
   } catch (error) {
     console.error('Lỗi khi chọn đề thi:', error);
     res.status(500).json({ message: 'Lỗi server khi chọn đề thi' });
@@ -514,7 +543,6 @@ app.delete('/delete-quiz/:quizId', async (req, res) => {
     if (!quiz) {
       return res.status(404).json({ message: 'Không tìm thấy đề thi' });
     }
-    // Xóa các file liên quan
     for (let audio of quiz.audioFiles) {
       try {
         await fs.unlink(audio.path);
@@ -531,8 +559,7 @@ app.delete('/delete-quiz/:quizId', async (req, res) => {
     }
     quizzes = quizzes.filter(q => q._id !== quizId);
     await fs.writeFile(QUIZZES_FILE, JSON.stringify(quizzes));
-    
-    // Cập nhật status nếu cần
+
     const status = JSON.parse(await fs.readFile(STATUS_FILE));
     if (status.quizId === quizId) {
       await fs.writeFile(STATUS_FILE, JSON.stringify({}));
@@ -615,23 +642,23 @@ app.get('/download-quiz-zip/:quizId', async (req, res) => {
     const archive = archiver('zip', { zlib: { level: 9 } });
     archive.pipe(res);
 
-    // Thêm file audio
     for (let audio of quiz.audioFiles) {
       archive.file(audio.path, { name: `audio/part${audio.part}${path.extname(audio.path)}` });
     }
-
-    // Thêm file ảnh
     for (let image of quiz.imageFiles) {
       archive.file(image.path, { name: `images/part${image.part}/${path.basename(image.path)}` });
     }
-
-    // Thêm file JSON
     archive.append(JSON.stringify(quiz.answerKey), { name: 'answerKey.json' });
     archive.append(JSON.stringify({
       quizName: quiz.quizName,
       createdBy: quiz.createdBy,
       createdAt: quiz.createdAt,
     }), { name: 'quizInfo.json' });
+
+    archive.on('error', err => {
+      console.error('Archive error:', err);
+      res.status(500).json({ message: 'Lỗi khi tạo file ZIP' });
+    });
 
     archive.finalize();
   } catch (error) {
@@ -676,7 +703,7 @@ app.post('/upload-quizzes-zip', upload.single('quizzes'), async (req, res) => {
         const part = parseInt(file.path.match(/part(\d+)/)?.[1]);
         if (part) {
           const fileName = `audio-part${part}-${Date.now()}${path.extname(file.path)}`;
-          const filePath = path.join(__dirname, 'Uploads/audio', fileName);
+          const filePath = path.join(UPLOADS_DIR, 'audio', fileName);
           await fs.writeFile(filePath, await file.buffer());
           audioFiles.push({ part, path: filePath });
         }
@@ -684,7 +711,7 @@ app.post('/upload-quizzes-zip', upload.single('quizzes'), async (req, res) => {
         const part = parseInt(file.path.match(/part(\d+)/)?.[1]);
         if (part) {
           const fileName = `images-part${part}-${Date.now()}${path.extname(file.path)}`;
-          const filePath = path.join(__dirname, 'Uploads/images', fileName);
+          const filePath = path.join(UPLOADS_DIR, 'images', fileName);
           await fs.writeFile(filePath, await file.buffer());
           imageFiles.push({ part, path: filePath });
         }
@@ -707,7 +734,6 @@ app.post('/upload-quizzes-zip', upload.single('quizzes'), async (req, res) => {
       return res.status(400).json({ message: 'File ZIP thiếu file ảnh cho một hoặc nhiều phần' });
     }
 
-    // Kiểm tra số lượng câu hỏi trong answerKey
     const expectedQuestions = 200;
     const questionKeys = Object.keys(answerKey);
     if (questionKeys.length !== expectedQuestions) {
@@ -775,5 +801,5 @@ app.get('/quiz-status', async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+  console.log(`Server running on port ${port}`);
 });
