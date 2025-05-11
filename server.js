@@ -1,45 +1,22 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
-const WebSocket = require('ws');
+const { createServer } = require('http');
+const { Server } = require('ws');
+const { v4: uuidv4 } = require('uuid'); // Thêm uuid để tạo ID duy nhất
 
 const app = express();
-const port = 3000;
-const wsPort = 8080;
+const port = process.env.PORT || 3000; // Sử dụng PORT từ Render hoặc mặc định 3000
 
-// Kết nối MongoDB
-mongoose.connect('mongodb://localhost:27017/quizApp', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-}).then(() => {
-  console.log('Connected to MongoDB');
-}).catch(err => {
-  console.error('MongoDB connection error:', err);
-});
+// Tạo server HTTP và WebSocket
+const server = createServer(app);
+const wss = new Server({ server });
 
-// Schema cho Quiz
-const quizSchema = new mongoose.Schema({
-  quizName: { type: String, required: true },
-  answerKey: { type: Object, required: true },
-  createdBy: { type: String, required: true },
-  audioFiles: [{ part: Number, path: String }],
-  imageFiles: [{ part: Number, path: String }],
-  createdAt: { type: Date, default: Date.now },
-});
-const Quiz = mongoose.model('Quiz', quizSchema);
-
-// Schema cho Result
-const resultSchema = new mongoose.Schema({
-  quizId: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz', required: true },
-  studentName: { type: String, required: true },
-  answers: { type: Object, required: true },
-  score: { type: Number, required: true },
-  time: { type: Number, required: true },
-  submittedAt: { type: Date, default: Date.now },
-});
-const Result = mongoose.model('Result', resultSchema);
+// Lưu trữ dữ liệu trong bộ nhớ
+let quizzes = [];
+let results = [];
+const clients = new Map();
 
 // Cấu hình Multer
 const storage = multer.diskStorage({
@@ -47,9 +24,9 @@ const storage = multer.diskStorage({
     const fieldName = file.fieldname;
     let dir;
     if (fieldName.startsWith('audio-part')) {
-      dir = path.join(__dirname, 'uploads/audio');
+      dir = path.join(__dirname, 'Uploads/audio');
     } else if (fieldName.startsWith('images-part')) {
-      dir = path.join(__dirname, 'uploads/images');
+      dir = path.join(__dirname, 'Uploads/images');
     }
     try {
       await fs.mkdir(dir, { recursive: true });
@@ -81,7 +58,7 @@ const upload = multer({
 
 // Middleware
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'Uploads')));
 
 // Endpoint lưu đề thi
 app.post('/save-quiz', upload.fields([
@@ -162,18 +139,21 @@ app.post('/save-quiz', upload.fields([
       });
     }
 
-    // Lưu vào MongoDB
-    const quiz = new Quiz({
+    // Lưu vào bộ nhớ
+    const quizId = uuidv4(); // Tạo ID duy nhất
+    const quiz = {
+      _id: quizId,
       quizName,
       answerKey: parsedAnswerKey,
       createdBy,
       audioFiles,
       imageFiles,
-    });
-    const savedQuiz = await quiz.save();
-    console.log('Đã lưu đề thi:', savedQuiz._id);
+      createdAt: new Date(),
+    };
+    quizzes.push(quiz);
+    console.log('Đã lưu đề thi:', quizId);
 
-    res.status(200).json({ message: 'Lưu đề thi thành công!', quizId: savedQuiz._id });
+    res.status(200).json({ message: 'Lưu đề thi thành công!', quizId });
   } catch (error) {
     console.error('Lỗi khi lưu đề thi:', error);
     res.status(500).json({ message: `Lỗi server: ${error.message}` });
@@ -183,8 +163,11 @@ app.post('/save-quiz', upload.fields([
 // Endpoint lấy danh sách đề thi
 app.get('/get-quizzes', async (req, res) => {
   try {
-    const quizzes = await Quiz.find({}, 'quizName _id');
-    res.status(200).json(quizzes);
+    const quizList = quizzes.map(quiz => ({
+      _id: quiz._id,
+      quizName: quiz.quizName,
+    }));
+    res.status(200).json(quizList);
   } catch (error) {
     console.error('Lỗi khi lấy danh sách đề thi:', error);
     res.status(500).json({ message: 'Lỗi server: ' + error.message });
@@ -194,7 +177,7 @@ app.get('/get-quizzes', async (req, res) => {
 // Endpoint lấy chi tiết đề thi
 app.get('/get-quiz/:id', async (req, res) => {
   try {
-    const quiz = await Quiz.findById(req.params.id);
+    const quiz = quizzes.find(q => q._id === req.params.id);
     if (!quiz) {
       return res.status(404).json({ message: 'Không tìm thấy đề thi!' });
     }
@@ -217,7 +200,7 @@ app.post('/submit-quiz', async (req, res) => {
       return res.status(400).json({ message: 'Thiếu dữ liệu bài nộp!' });
     }
 
-    const quiz = await Quiz.findById(quizId);
+    const quiz = quizzes.find(q => q._id === quizId);
     if (!quiz) {
       return res.status(404).json({ message: 'Không tìm thấy đề thi!' });
     }
@@ -229,14 +212,15 @@ app.post('/submit-quiz', async (req, res) => {
       }
     }
 
-    const result = new Result({
+    const result = {
       quizId,
       studentName,
       answers,
       score,
       time,
-    });
-    await result.save();
+      submittedAt: new Date(),
+    };
+    results.push(result);
 
     res.status(200).json({ message: 'Nộp bài thành công!', score, time });
   } catch (error) {
@@ -248,12 +232,12 @@ app.post('/submit-quiz', async (req, res) => {
 // Endpoint lấy trạng thái đề thi
 app.get('/quiz-status/:id', async (req, res) => {
   try {
-    const results = await Result.find({ quizId: req.params.id });
+    const quizResults = results.filter(r => r.quizId === req.params.id);
     res.status(200).json({
       status: 'Đang diễn ra', // Có thể tùy chỉnh
-      participants: results.length,
-      submitted: results.length,
-      results: results.map(r => ({
+      participants: quizResults.length,
+      submitted: quizResults.length,
+      results: quizResults.map(r => ({
         studentName: r.studentName,
         score: r.score,
         time: r.time,
@@ -268,23 +252,23 @@ app.get('/quiz-status/:id', async (req, res) => {
 // Endpoint lấy lịch sử thi
 app.get('/history', async (req, res) => {
   try {
-    const results = await Result.find().populate('quizId', 'quizName');
-    res.status(200).json(results.map(r => ({
-      quizName: r.quizId.quizName,
-      studentName: r.studentName,
-      score: r.score,
-      time: r.time,
-    })));
+    const history = results.map(r => {
+      const quiz = quizzes.find(q => q._id === r.quizId);
+      return {
+        quizName: quiz ? quiz.quizName : 'Unknown',
+        studentName: r.studentName,
+        score: r.score,
+        time: r.time,
+      };
+    });
+    res.status(200).json(history);
   } catch (error) {
     console.error('Lỗi khi lấy lịch sử thi:', error);
     res.status(500).json({ message: 'Lỗi server: ' + error.message });
   }
 });
 
-// WebSocket server
-const wss = new WebSocket.Server({ port: wsPort });
-const clients = new Map();
-
+// WebSocket logic
 wss.on('connection', ws => {
   console.log('Client connected to WebSocket');
   ws.on('message', message => {
@@ -313,24 +297,20 @@ wss.on('connection', ws => {
   });
 });
 
-async function broadcastUpdate(quizId) {
-  try {
-    const results = await Result.find({ quizId });
-    const update = {
-      type: 'update',
-      quizId,
-      participants: clients.size,
-      submitted: results.length,
-      results: results.map(r => ({
-        studentName: r.studentName,
-        score: r.score,
-        time: r.time,
-      })),
-    };
-    broadcast(update);
-  } catch (error) {
-    console.error('Lỗi khi broadcast update:', error);
-  }
+function broadcastUpdate(quizId) {
+  const quizResults = results.filter(r => r.quizId === quizId);
+  const update = {
+    type: 'update',
+    quizId,
+    participants: clients.size,
+    submitted: quizResults.length,
+    results: quizResults.map(r => ({
+      studentName: r.studentName,
+      score: r.score,
+      time: r.time,
+    })),
+  };
+  broadcast(update);
 }
 
 function broadcast(data) {
@@ -342,7 +322,6 @@ function broadcast(data) {
 }
 
 // Khởi động server
-app.listen(port, () => {
+server.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
-  console.log(`WebSocket server running at ws://localhost:${wsPort}`);
 });
