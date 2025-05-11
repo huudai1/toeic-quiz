@@ -1,241 +1,330 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TOEIC Quiz</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="google-signin-client_id" content="207656291282-cedkb5qkbeek0s9dbaca2o3ia3svjesv.apps.googleusercontent.com">
+  <title>Quiz App</title>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 min-h-screen p-6">
-  <audio id="audio" controls class="fixed top-4 right-4 z-50 hidden">
-    <source id="audio-source" src="" type="audio/mpeg">
-    Your browser does not support the audio element.
-  </audio>
-  <div id="timer" class="fixed top-4 left-4 text-lg font-bold hidden"></div>
-  <!-- Nút mũi tên và khung bộ đếm ngược -->
-  <div id="countdown-toggle" class="fixed top-4 right-16 z-50 cursor-pointer">
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-    </svg>
+<body class="bg-gray-100 font-sans">
+  <div id="download-notice" class="fixed top-4 right-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 hidden">
+    <p class="font-bold">Thông báo</p>
+    <p>Vui lòng tải xuống ứng dụng của chúng tôi để có trải nghiệm tốt nhất!</p>
   </div>
-  <div id="countdown-panel" class="fixed top-10 right-4 z-50 bg-white p-4 rounded-lg shadow-lg text-lg font-bold hidden transition-all duration-300 transform translate-y-[-10px]" style="white-space: pre-line;"></div>
-  <div class="max-w-7xl mx-auto bg-white rounded-lg shadow-lg p-6">
-    <h1 class="text-3xl font-bold text-center mb-6">TOEIC Quiz</h1>
 
-    <div id="welcome-screen" class="mb-6">
-      <h2 class="text-xl font-bold mb-4">Chào mừng bạn đến với TOEIC Quiz!</h2>
-      <p class="mb-4">Bạn là:</p>
-      <button onclick="showAdminLogin()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Admin (Đăng nhập Google)</button>
-      <button onclick="showStudentLogin()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Học sinh (Nhập tên)</button>
+  <div id="welcome-screen" class="container mx-auto p-4">
+    <h1 class="text-3xl font-bold mb-4">Quiz App</h1>
+    <p id="notification" class="text-red-500 mb-4"></p>
+    <div class="space-y-4">
+      <button onclick="showAdminLogin()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Đăng nhập Admin</button>
+      <button onclick="showStudentLogin()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Đăng nhập Học sinh</button>
     </div>
+  </div>
 
-    <div id="admin-login" class="mb-6 hidden">
-      <h2 class="text-xl font-bold mb-4">Admin: Đăng nhập bằng Google</h2>
-      <div id="g_id_onload"
-           data-client_id="207656291282-cedkb5qkbeek0s9dbaca2o3ia3svjesv.apps.googleusercontent.com"
-           data-callback="handleAdminCredentialResponse"
-           data-auto_prompt="false">
+  <div id="admin-login" class="container mx-auto p-4 hidden">
+    <h1 class="text-3xl font-bold mb-4">Đăng nhập Admin</h1>
+    <p id="notification" class="text-red-500 mb-4"></p>
+    <div id="g_id_onload"
+         data-client_id="207656291282-cedkb5qkbeek0s9dbaca2o3ia3svjesv.apps.googleusercontent.com"
+         data-callback="handleAdminCredentialResponse"
+         data-auto_prompt="false">
+    </div>
+    <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline" data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left"></div>
+    <button onclick="showWelcomeScreen()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+  </div>
+
+  <div id="student-login" class="container mx-auto p-4 hidden">
+    <h1 class="text-3xl font-bold mb-4">Đăng nhập Học sinh</h1>
+    <p id="notification" class="text-red-500 mb-4"></p>
+    <form id="student-name-form" class="space-y-4">
+      <div>
+        <label for="student-name" class="block text-lg">Tên:</label>
+        <input id="student-name" type="text" class="border p-2 rounded w-full" required>
       </div>
-      <div class="g_id_signin" data-type="standard"></div>
-      <button onclick="showWelcomeScreen()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
-    </div>
+      <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Đăng nhập</button>
+    </form>
+    <button onclick="showWelcomeScreen()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+  </div>
 
-    <div id="student-login" class="mb-6 hidden">
-      <h2 class="text-xl font-bold mb-4">Học sinh: Nhập tên của bạn</h2>
-      <form id="student-name-form">
-        <input type="text" id="student-name" class="w-full p-2 border rounded mb-4" placeholder="Nhập tên của bạn" required />
-        <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Xác nhận</button>
-        <button type="button" onclick="showWelcomeScreen()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
-      </form>
+  <div id="quiz-list-screen" class="container mx-auto p-4 hidden">
+    <div class="flex justify-between items-center mb-4">
+      <h1 class="text-3xl font-bold">Danh sách đề thi</h1>
+      <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Đăng xuất</button>
     </div>
+    <p id="notification" class="text-red-500 mb-4"></p>
+    <p id="quiz-status" class="text-lg mb-4"></p>
+    <p id="participant-count" class="text-lg mb-4"></p>
+    <p id="submitted-count" class="text-lg mb-4"></p>
+    <div id="admin-options" class="space-y-4 mb-4 hidden">
+      <button onclick="createNewQuiz()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Tạo đề thi mới</button>
+      <button onclick="showUploadQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tải lên đề thi</button>
+      <button onclick="showHistoryScreen()" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">Xem lịch sử</button>
+      <button onclick="clearDatabase()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Xóa database cũ</button>
+    </div>
+    <div id="admin-controls" class="space-x-4 mb-4 hidden">
+      <button id="assignBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 hidden">Giao bài</button>
+      <button id="directTestBtn" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 hidden">Kiểm tra trực tiếp</button>
+    </div>
+    <div id="quiz-list" class="space-y-4"></div>
+    <table id="results-table" class="w-full border-collapse hidden">
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="border p-2">Tên</th>
+          <th class="border p-2">Điểm</th>
+          <th class="border p-2">Thời gian nộp</th>
+        </tr>
+      </thead>
+      <tbody id="results-body"></tbody>
+    </table>
+  </div>
 
-    <div id="quiz-list-screen" class="mb-6 hidden">
-      <h2 class="text-xl font-bold mb-4">Danh sách đề thi</h2>
-      <div id="quiz-status" class="text-lg font-semibold mb-4"></div>
-      <div id="quiz-list" class="space-y-2"></div>
-      <div id="admin-options" class="mt-4 hidden">
-        <button onclick="createNewQuiz()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mr-2">Tạo đề mới</button>
-        <button onclick="showUploadQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Nhập đề thi</button>
+  <div id="direct-test-screen" class="container mx-auto p-4 hidden">
+    <h1 class="text-3xl font-bold mb-4">Kiểm tra trực tiếp</h1>
+    <p id="notification" class="text-red-500 mb-4"></p>
+    <p id="direct-participant-count" class="text-lg mb-4"></p>
+    <p id="direct-submitted-count" class="text-lg mb-4"></p>
+    <button id="endDirectTestBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Kết thúc kiểm tra</button>
+    <button onclick="backToQuizList()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+    <table id="direct-results-table" class="w-full border-collapse mt-4 hidden">
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="border p-2">Tên</th>
+          <th class="border p-2">Điểm</th>
+          <th class="border p-2">Thời gian nộp</th>
+        </tr>
+      </thead>
+      <tbody id="direct-results-body"></tbody>
+    </table>
+  </div>
+
+  <div id="upload-quizzes" class="container mx-auto p-4 hidden">
+    <h1 class="text-3xl font-bold mb-4">Tải lên đề thi</h1>
+    <p id="notification" class="text-red-500 mb-4"></p>
+    <input id="quizzes-file" type="file" accept=".json,.zip" class="mb-4">
+    <button onclick="uploadQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tải lên</button>
+    <button onclick="backToQuizList()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+  </div>
+
+  <div id="history-screen" class="container mx-auto p-4 hidden">
+    <h1 class="text-3xl font-bold mb-4">Lịch sử điểm</h1>
+    <p id="notification" class="text-red-500 mb-4"></p>
+    <button onclick="deleteSelectedResults()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 mb-4">Xóa mục đã chọn</button>
+    <button onclick="backToQuizList()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+    <table class="w-full border-collapse">
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="border p-2"><input id="select-all" type="checkbox" onclick="toggleSelectAll()"></th>
+          <th class="border p-2">Tên</th>
+          <th class="border p-2">Điểm</th>
+          <th class="border p-2">Thời gian nộp</th>
+        </tr>
+      </thead>
+      <tbody id="history-body"></tbody>
+    </table>
+  </div>
+
+  <div id="admin-step-audio" class="container mx-auto p-4 hidden admin-step">
+    <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 1: Tên và file nghe</h1>
+    <p id="notification" class="text-red-500 mb-4"></p>
+    <div class="space-y-4">
+      <div>
+        <label for="quiz-name" class="block text-lg">Tên đề thi:</label>
+        <input id="quiz-name" type="text" class="border p-2 rounded w-full" required>
       </div>
-      <div id="admin-controls" class="mt-4 hidden">
-        <div id="participant-count" class="text-lg font-semibold mb-2"></div>
-        <div id="submitted-count" class="text-lg font-semibold mb-2"></div>
-        <button id="startBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2 hidden">Bắt đầu làm bài</button>
-        <button id="endBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 mr-2 hidden">Kết thúc</button>
-        <button id="reuseBtn" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 mr-2 hidden">Dùng lại đề cho lớp mới</button>
-        <div id="results-table" class="mt-4 hidden">
-          <h3 class="text-lg font-bold mb-2">Kết quả</h3>
-          <table class="w-full border-collapse">
-            <thead>
-              <tr class="bg-gray-200">
-                <th class="border p-2">Tên</th>
-                <th class="border p-2">Điểm</th>
-                <th class="border p-2">Thời gian nộp</th>
-              </tr>
-            </thead>
-            <tbody id="results-body"></tbody>
-          </table>
-        </div>
+      <div>
+        <label for="audio-file-part1" class="block text-lg">File nghe Part 1:</label>
+        <input id="audio-file-part1" type="file" accept="audio/*" required>
       </div>
-      <button onclick="logout()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Đăng xuất</button>
-    </div>
-
-    <div id="upload-quizzes" class="mb-6 hidden">
-      <h3 class="text-lg font-semibold mb-2">Nhập file đề thi (.json hoặc .zip)</h3>
-      <input type="file" id="quizzes-file" accept=".json,.zip" class="mb-4">
-      <button onclick="uploadQuizzes()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Tải lên</button>
+      <div>
+        <label for="audio-file-part2" class="block text-lg">File nghe Part 2:</label>
+        <input id="audio-file-part2" type="file" accept="audio/*" required>
+      </div>
+      <div>
+        <label for="audio-file-part3" class="block text-lg">File nghe Part 3:</label>
+        <input id="audio-file-part3" type="file" accept="audio/*" required>
+      </div>
+      <div>
+        <label for="audio-file-part4" class="block text-lg">File nghe Part 4:</label>
+        <input id="audio-file-part4" type="file" accept="audio/*" required>
+      </div>
+      <button onclick="validateAndNextAdminStep(1)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
       <button onclick="backToQuizList()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
     </div>
+  </div>
 
-    <div id="admin-step-audio" class="admin-step hidden">
-      <h3 class="text-lg font-semibold mb-2">Bước 1: Đặt tên đề và tải file nghe (Part 1-4)</h3>
-      <label class="block mb-2">Tên đề thi:</label>
-      <input type="text" id="quiz-name" class="w-full p-2 border rounded mb-4" placeholder="Nhập tên đề thi (ví dụ: Đề thi TOEIC tháng 4)" required>
-      <label class="block mb-2">File nghe Part 1 (6 câu):</label>
-      <input type="file" id="audio-file-part1" accept="audio/mpeg" class="mb-4">
-      <label class="block mb-2">File nghe Part 2 (25 câu):</label>
-      <input type="file" id="audio-file-part2" accept="audio/mpeg" class="mb-4">
-      <label class="block mb-2">File nghe Part 3 (39 câu):</label>
-      <input type="file" id="audio-file-part3" accept="audio/mpeg" class="mb-4">
-      <label class="block mb-2">File nghe Part 4 (30 câu):</label>
-      <input type="file" id="audio-file-part4" accept="audio/mpeg" class="mb-4">
-      <button onclick="nextAdminStep(1)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2">Tiếp theo</button>
-      <button onclick="backToQuizList()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
-    </div>
-
-    <div id="admin-step-part1" class="admin-step hidden">
-      <h3 class="text-lg font-semibold mb-2">Bước 2: Part 1 (6 câu)</h3>
-      <label class="block mb-2">Ảnh cho Part 1:</label>
-      <input type="file" id="images-part1" multiple accept="image/*" class="mb-4">
-      <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
-      <textarea id="answer-key-part1" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 6 đáp án, ví dụ: A,D,C,B,A,C"></textarea>
-      <button onclick="prevAdminStep(1)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
-      <button onclick="nextAdminStep(2)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-    </div>
-
-    <div id="admin-step-part2" class="admin-step hidden">
-      <h3 class="text-lg font-semibold mb-2">Bước 3: Part 2 (25 câu)</h3>
-      <label class="block mb-2">Ảnh cho Part 2:</label>
-      <input type="file" id="images-part2" multiple accept="image/*" class="mb-4">
-      <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
-      <textarea id="answer-key-part2" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 25 đáp án, ví dụ: A,D,C,B,..."></textarea>
-      <button onclick="prevAdminStep(2)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
-      <button onclick="nextAdminStep(3)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-    </div>
-
-    <div id="admin-step-part3" class="admin-step hidden">
-      <h3 class="text-lg font-semibold mb-2">Bước 4: Part 3 (39 câu)</h3>
-      <label class="block mb-2">Ảnh cho Part 3:</label>
-      <input type="file" id="images-part3" multiple accept="image/*" class="mb-4">
-      <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
-      <textarea id="answer-key-part3" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 39 đáp án, ví dụ: A,D,C,B,..."></textarea>
-      <button onclick="prevAdminStep(3)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
-      <button onclick="nextAdminStep(4)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-    </div>
-
-    <div id="admin-step-part4" class="admin-step hidden">
-      <h3 class="text-lg font-semibold mb-2">Bước 5: Part 4 (30 câu)</h3>
-      <label class="block mb-2">Ảnh cho Part 4:</label>
-      <input type="file" id="images-part4" multiple accept="image/*" class="mb-4">
-      <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
-      <textarea id="answer-key-part4" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 30 đáp án, ví dụ: A,D,C,B,..."></textarea>
-      <button onclick="prevAdminStep(4)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
-      <button onclick="nextAdminStep(5)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-    </div>
-
-    <div id="admin-step-part5" class="admin-step hidden">
-      <h3 class="text-lg font-semibold mb-2">Bước 6: Part 5 (30 câu)</h3>
-      <label class="block mb-2">Ảnh cho Part 5:</label>
-      <input type="file" id="images-part5" multiple accept="image/*" class="mb-4">
-      <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
-      <textarea id="answer-key-part5" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 30 đáp án, ví dụ: A,D,C,B,..."></textarea>
-      <button onclick="prevAdminStep(5)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
-      <button onclick="nextAdminStep(6)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-    </div>
-
-    <div id="admin-step-part6" class="admin-step hidden">
-      <h3 class="text-lg font-semibold mb-2">Bước 7: Part 6 (16 câu)</h3>
-      <label class="block mb-2">Ảnh cho Part 6:</label>
-      <input type="file" id="images-part6" multiple accept="image/*" class="mb-4">
-      <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
-      <textarea id="answer-key-part6" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 16 đáp án, ví dụ: A,D,C,B,..."></textarea>
-      <button onclick="prevAdminStep(6)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
-      <button onclick="nextAdminStep(7)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
-    </div>
-
-    <div id="admin-step-part7" class="admin-step hidden">
-      <h3 class="text-lg font-semibold mb-2">Bước 8: Part 7 (54 câu)</h3>
-      <label class="block mb-2">Ảnh cho Part 7:</label>
-      <input type="file" id="images-part7" multiple accept="image/*" class="mb-4">
-      <label class="block mb-2">Đáp án đúng (A,D,C,B,...):</label>
-      <textarea id="answer-key-part7" class="w-full p-2 border rounded mb-4" rows="3" placeholder="Nhập 54 đáp án, ví dụ: A,D,C,B,..."></textarea>
-      <button onclick="prevAdminStep(7)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">Quay lại</button>
-      <button onclick="saveQuiz()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Lưu đề thi</button>
-    </div>
-
-    <div id="quiz-container" class="flex flex-col md:flex-row hidden">
-      <div class="w-full md:w-1/2 pr-0 md:pr-4 overflow-y-auto max-h-screen">
-        <h2 class="text-xl font-bold mb-4">Ảnh đề thi</h2>
-        <div id="image-display" class="space-y-4"></div>
+  <div id="admin-step-part1" class="container mx-auto p-4 hidden admin-step">
+    <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 2: Part 1</h1>
+    <p id="notification" class="text-red-500 mb-4"></p>
+    <div class="space-y-4">
+      <div>
+        <label for="images-part1" class="block text-lg">Ảnh Part 1 (ít nhất 1 ảnh):</label>
+        <input id="images-part1" type="file" accept="image/*" multiple required>
       </div>
-      <div class="w-full md:w-1/2 pl-0 md:pl-4">
-        <form id="quizForm">
-          <div id="quiz-part1" class="quiz-part">
-            <h2 class="text-xl font-bold">Part 1 (6 câu)</h2>
+      <div>
+        <label for="answer-key-part1" class="block text-lg">Đáp án Part 1 (6 đáp án, cách nhau bằng dấu phẩy, ví dụ: A,B,C,D,A,B):</label>
+        <input id="answer-key-part1" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,D,A,B" required>
+      </div>
+      <button onclick="validateAndNextAdminStep(2)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+      <button onclick="prevAdminStep(1)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+    </div>
+  </div>
+
+  <div id="admin-step-part2" class="container mx-auto p-4 hidden admin-step">
+    <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 3: Part 2</h1>
+    <p id="notification" class="text-red-500 mb-4"></p>
+    <div class="space-y-4">
+      <div>
+        <label for="images-part2" class="block text-lg">Ảnh Part 2 (ít nhất 1 ảnh):</label>
+        <input id="images-part2" type="file" accept="image/*" multiple required>
+      </div>
+      <div>
+        <label for="answer-key-part2" class="block text-lg">Đáp án Part 2 (25 đáp án, cách nhau bằng dấu phẩy):</label>
+        <input id="answer-key-part2" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,..." required>
+      </div>
+      <button onclick="validateAndNextAdminStep(3)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+      <button onclick="prevAdminStep(2)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+    </div>
+  </div>
+
+  <div id="admin-step-part3" class="container mx-auto p-4 hidden admin-step">
+    <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 4: Part 3</h1>
+    <p id="notification" class="text-red-500 mb-4"></p>
+    <div class="space-y-4">
+      <div>
+        <label for="images-part3" class="block text-lg">Ảnh Part 3 (ít nhất 1 ảnh):</label>
+        <input id="images-part3" type="file" accept="image/*" multiple required>
+      </div>
+      <div>
+        <label for="answer-key-part3" class="block text-lg">Đáp án Part 3 (39 đáp án, cách nhau bằng dấu phẩy):</label>
+        <input id="answer-key-part3" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,..." required>
+      </div>
+      <button onclick="validateAndNextAdminStep(4)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+      <button onclick="prevAdminStep(3)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+    </div>
+  </div>
+
+  <div id="admin-step-part4" class="container mx-auto p-4 hidden admin-step">
+    <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 5: Part 4</h1>
+    <p id="notification" class="text-red-500 mb-4"></p>
+    <div class="space-y-4">
+      <div>
+        <label for="images-part4" class="block text-lg">Ảnh Part 4 (ít nhất 1 ảnh):</label>
+        <input id="images-part4" type="file" accept="image/*" multiple required>
+      </div>
+      <div>
+        <label for="answer-key-part4" class="block text-lg">Đáp án Part 4 (30 đáp án, cách nhau bằng dấu phẩy):</label>
+        <input id="answer-key-part4" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,..." required>
+      </div>
+      <button onclick="validateAndNextAdminStep(5)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+      <button onclick="prevAdminStep(4)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+    </div>
+  </div>
+
+  <div id="admin-step-part5" class="container mx-auto p-4 hidden admin-step">
+    <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 6: Part 5</h1>
+    <p id="notification" class="text-red-500 mb-4"></p>
+    <div class="space-y-4">
+      <div>
+        <label for="images-part5" class="block text-lg">Ảnh Part 5 (ít nhất 1 ảnh):</label>
+        <input id="images-part5" type="file" accept="image/*" multiple required>
+      </div>
+      <div>
+        <label for="answer-key-part5" class="block text-lg">Đáp án Part 5 (30 đáp án, cách nhau bằng dấu phẩy):</label>
+        <input id="answer-key-part5" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,..." required>
+      </div>
+      <button onclick="validateAndNextAdminStep(6)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+      <button onclick="prevAdminStep(5)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+    </div>
+  </div>
+
+  <div id="admin-step-part6" class="container mx-auto p-4 hidden admin-step">
+    <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 7: Part 6</h1>
+    <p id="notification" class="text-red-500 mb-4"></p>
+    <div class="space-y-4">
+      <div>
+        <label for="images-part6" class="block text-lg">Ảnh Part 6 (ít nhất 1 ảnh):</label>
+        <input id="images-part6" type="file" accept="image/*" multiple required>
+      </div>
+      <div>
+        <label for="answer-key-part6" class="block text-lg">Đáp án Part 6 (16 đáp án, cách nhau bằng dấu phẩy):</label>
+        <input id="answer-key-part6" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,..." required>
+      </div>
+      <button onclick="validateAndNextAdminStep(7)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tiếp theo</button>
+      <button onclick="prevAdminStep(6)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+    </div>
+  </div>
+
+  <div id="admin-step-part7" class="container mx-auto p-4 hidden admin-step">
+    <h1 class="text-3xl font-bold mb-4">Tạo đề thi mới - Bước 8: Part 7</h1>
+    <p id="notification" class="text-red-500 mb-4"></p>
+    <div class="space-y-4">
+      <div>
+        <label for="images-part7" class="block text-lg">Ảnh Part 7 (ít nhất 1 ảnh):</label>
+      <input id="images-part7" type="file" accept="image/*" multiple required>
+      </div>
+      <div>
+        <label for="answer-key-part7" class="block text-lg">Đáp án Part 7 (54 đáp án, cách nhau bằng dấu phẩy):</label>
+        <input id="answer-key-part7" type="text" class="border p-2 rounded w-full" placeholder="A,B,C,..." required>
+      </div>
+      <button onclick="validateAndSaveQuiz()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Lưu đề thi</button>
+      <button onclick="prevAdminStep(7)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
+    </div>
+  </div>
+
+  <div id="quiz-container" class="container mx-auto p-4 hidden">
+    <h1 class="text-3xl font-bold mb-4">Bài thi</h1>
+    <p id="notification" class="text-red-500 mb-4"></p>
+    <p id="timer" class="text-lg mb-4 hidden"></p>
+    <audio id="audio" controls class="mb-4 hidden">
+      <source id="audio-source" src="" type="audio/mpeg">
+    </audio>
+    <div class="flex flex-col md:flex-row h-[calc(100vh-200px)] gap-4">
+      <div id="image-list" class="w-full md:w-1/2 bg-white p-4 rounded-lg shadow overflow-y-auto">
+        <h3 class="text-lg font-semibold mb-2">Ảnh Part <span id="image-part-number"></span></h3>
+        <div id="image-content" class="space-y-4"></div>
+      </div>
+      <div id="question-list" class="w-full md:w-1/2 bg-white p-4 rounded-lg shadow overflow-y-auto">
+        <h3 class="text-lg font-semibold mb-2">Câu hỏi Part <span id="question-part-number"></span></h3>
+        <form id="quizForm" class="space-y-4">
+          <div id="quiz-part1" class="part-section">
             <div id="section1" class="space-y-4"></div>
-            <button type="button" onclick="nextQuizPart(1)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4">Tiếp theo</button>
           </div>
-          <div id="quiz-part2" class="quiz-part hidden">
-            <h2 class="text-xl font-bold">Part 2 (25 câu)</h2>
+          <div id="quiz-part2" class="part-section hidden">
             <div id="section2" class="space-y-4"></div>
-            <button type="button" onclick="prevQuizPart(1)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mt-4">Quay lại</button>
-            <button type="button" onclick="nextQuizPart(2)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4">Tiếp theo</button>
           </div>
-          <div id="quiz-part3" class="quiz-part hidden">
-            <h2 class="text-xl font-bold">Part 3 (39 câu)</h2>
+          <div id="quiz-part3" class="part-section hidden">
             <div id="section3" class="space-y-4"></div>
-            <button type="button" onclick="prevQuizPart(2)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mt-4">Quay lại</button>
-            <button type="button" onclick="nextQuizPart(3)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4">Tiếp theo</button>
           </div>
-          <div id="quiz-part4" class="quiz-part hidden">
-            <h2 class="text-xl font-bold">Part 4 (30 câu)</h2>
+          <div id="quiz-part4" class="part-section hidden">
             <div id="section4" class="space-y-4"></div>
-            <button type="button" onclick="prevQuizPart(3)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mt-4">Quay lại</button>
-            <button type="button" onclick="nextQuizPart(4)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4">Tiếp theo</button>
           </div>
-          <div id="quiz-part5" class="quiz-part hidden">
-            <h2 class="text-xl font-bold">Part 5 (30 câu)</h2>
+          <div id="quiz-part5" class="part-section hidden">
             <div id="section5" class="space-y-4"></div>
-            <button type="button" onclick="prevQuizPart(4)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mt-4">Quay lại</button>
-            <button type="button" onclick="nextQuizPart(5)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4">Tiếp theo</button>
           </div>
-          <div id="quiz-part6" class="quiz-part hidden">
-            <h2 class="text-xl font-bold">Part 6 (16 câu)</h2>
+          <div id="quiz-part6" class="part-section hidden">
             <div id="section6" class="space-y-4"></div>
-            <button type="button" onclick="prevQuizPart(5)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mt-4">Quay lại</button>
-            <button type="button" onclick="nextQuizPart(6)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4">Tiếp theo</button>
           </div>
-          <div id="quiz-part7" class="quiz-part hidden">
-            <h2 class="text-xl font-bold">Part 7 (54 câu)</h2>
+          <div id="quiz-part7" class="part-section hidden">
             <div id="section7" class="space-y-4"></div>
-            <button type="button" onclick="prevQuizPart(6)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mt-4">Quay lại</button>
-            <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mt-4">Nộp bài</button>
+          </div>
+          <div class="flex space-x-4 sticky bottom-0 bg-white p-4">
+            <button type="button" onclick="prevQuizPart(currentQuizPart + 1)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Phần trước</button>
+            <button type="button" onclick="nextQuizPart(currentQuizPart + 1)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Phần tiếp theo</button>
+            <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Nộp bài</button>
           </div>
         </form>
       </div>
     </div>
+  </div>
 
-    <div id="result-screen" class="hidden">
-      <h2 class="text-xl font-bold mb-4">Kết quả của bạn</h2>
-      <p id="result-score" class="text-lg"></p>
-      <p id="result-time" class="text-lg"></p>
-      <p id="result-submitted" class="text-lg hidden"></p>
-      <button onclick="backToQuizList()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4">Quay lại danh sách đề</button>
-      <button onclick="logout()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mt-4">Đăng xuất</button>
-    </div>
-
-    <div id="notification" class="mt-4 text-lg"></div>
+  <div id="result-screen" class="container mx-auto p-4 hidden">
+    <h1 class="text-3xl font-bold mb-4">Kết quả</h1>
+    <p id="notification" class="text-red-500 mb-4"></p>
+    <p id="result-score" class="text-lg mb-2"></p>
+    <p id="result-time" class="text-lg mb-2"></p>
+    <button onclick="showWelcomeScreen()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
   </div>
 
   <script>
@@ -244,6 +333,9 @@
     let timeLeft = 7200;
     let timerInterval = null;
     let isAdminControlled = false;
+    let selectedQuizId = null;
+    let isDirectTestMode = false;
+    let isTestEnded = false;
     const welcomeScreen = document.getElementById("welcome-screen");
     const adminLogin = document.getElementById("admin-login");
     const studentLogin = document.getElementById("student-login");
@@ -252,6 +344,7 @@
     const adminOptions = document.getElementById("admin-options");
     const adminControls = document.getElementById("admin-controls");
     const uploadQuizzesSection = document.getElementById("upload-quizzes");
+    const historyScreen = document.getElementById("history-screen");
     const quizzesFileInput = document.getElementById("quizzes-file");
     const quizList = document.getElementById("quiz-list");
     const quizContainer = document.getElementById("quiz-container");
@@ -259,12 +352,22 @@
     const quizStatus = document.getElementById("quiz-status");
     const participantCount = document.getElementById("participant-count");
     const submittedCount = document.getElementById("submitted-count");
-    const startBtn = document.getElementById("startBtn");
-    const endBtn = document.getElementById("endBtn");
-    const reuseBtn = document.getElementById("reuseBtn");
+    const assignBtn = document.getElementById("assignBtn");
+    const directTestBtn = document.getElementById("directTestBtn");
+    const directTestScreen = document.getElementById("direct-test-screen");
+    const endDirectTestBtn = document.getElementById("endDirectTestBtn");
+    const directParticipantCount = document.getElementById("direct-participant-count");
+    const directSubmittedCount = document.getElementById("direct-submitted-count");
+    const directResultsTable = document.getElementById("direct-results-table");
+    const directResultsBody = document.getElementById("direct-results-body");
     const resultsTable = document.getElementById("results-table");
     const resultsBody = document.getElementById("results-body");
-    const imageDisplay = document.getElementById("image-display");
+    const historyBody = document.getElementById("history-body");
+    const imageList = document.getElementById("image-list");
+    const imageContent = document.getElementById("image-content");
+    const imagePartNumber = document.getElementById("image-part-number");
+    const questionList = document.getElementById("question-list");
+    const questionPartNumber = document.getElementById("question-part-number");
     const audio = document.getElementById("audio");
     const audioSource = document.getElementById("audio-source");
     const timerDisplay = document.getElementById("timer");
@@ -272,9 +375,7 @@
     const resultScreen = document.getElementById("result-screen");
     const resultScore = document.getElementById("result-score");
     const resultTime = document.getElementById("result-time");
-    const resultSubmitted = document.getElementById("result-submitted");
-    const countdownToggle = document.getElementById("countdown-toggle");
-    const countdownPanel = document.getElementById("countdown-panel");
+    const downloadNotice = document.getElementById("download-notice");
 
     const wsProtocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
     let socket = null;
@@ -282,105 +383,156 @@
     let currentQuizPart = 0;
     const partAnswerCounts = [6, 25, 39, 30, 30, 16, 54];
 
-    // Countdown logic for 6 days
-    let countdownInterval = null;
-    let autoShowInterval = null;
-    const sixDaysInSeconds = 6 * 24 * 60 * 60; // 6 days in seconds
-    let countdownTimeLeft = sixDaysInSeconds;
-
-    function showCountdown() {
-      countdownPanel.classList.remove("hidden");
-      countdownPanel.classList.remove("translate-y-[-10px]");
-      countdownPanel.classList.add("translate-y-0");
-      // Auto-hide after 5 seconds
-      setTimeout(hideCountdown, 5000);
+    function saveAdminState() {
+      if (isAdmin && user) {
+        localStorage.setItem("adminState", JSON.stringify({
+          user: user,
+          isAdmin: true,
+          screen: getCurrentScreen(),
+          selectedQuizId: selectedQuizId,
+          isDirectTestMode: isDirectTestMode,
+          isTestEnded: isTestEnded,
+          currentAdminStep: currentAdminStep
+        }));
+      }
     }
 
-    function hideCountdown() {
-      countdownPanel.classList.add("translate-y-[-10px]");
-      setTimeout(() => {
-        countdownPanel.classList.add("hidden");
-        countdownPanel.classList.remove("translate-y-0");
-      }, 300); // Match transition duration
-    }
-
-    function startCountdown() {
-      // Update countdown display every second
-      countdownInterval = setInterval(() => {
-        if (countdownTimeLeft <= 0) {
-          clearInterval(countdownInterval);
-          clearInterval(autoShowInterval);
-          countdownPanel.innerText = "Hết thời gian dữ liệu có thể bị mất bất cứ lúc nào !";
-          showCountdown(); // Show permanently when time is up
-          countdownToggle.classList.add("hidden"); // Hide toggle button
-          return;
+    function getCurrentScreen() {
+      if (!welcomeScreen.classList.contains("hidden")) return "welcome-screen";
+      if (!adminLogin.classList.contains("hidden")) return "admin-login";
+      if (!studentLogin.classList.contains("hidden")) return "student-login";
+      if (!quizListScreen.classList.contains("hidden")) return "quiz-list-screen";
+      if (!directTestScreen.classList.contains("hidden")) return "direct-test-screen";
+      if (!uploadQuizzesSection.classList.contains("hidden")) return "upload-quizzes";
+      if (!historyScreen.classList.contains("hidden")) return "history-screen";
+      if (!quizContainer.classList.contains("hidden")) return "quiz-container";
+      if (!resultScreen.classList.contains("hidden")) return "result-screen";
+      if (!document.getElementById("admin-step-audio").classList.contains("hidden")) return "admin-step-audio";
+      for (let i = 1; i <= 7; i++) {
+        if (!document.getElementById(`admin-step-part${i}`).classList.contains("hidden")) {
+          return `admin-step-part${i}`;
         }
-        const days = Math.floor(countdownTimeLeft / (24 * 60 * 60));
-        const hours = Math.floor((countdownTimeLeft % (24 * 60 * 60)) / (60 * 60));
-        const minutes = Math.floor((countdownTimeLeft % (60 * 60)) / 60);
-        const seconds = countdownTimeLeft % 60;
-        countdownPanel.innerText = `Thời gian còn lại: ${days} ngày ${hours}:${minutes < 10 ? "0" : ""}${minutes}:${seconds < 10 ? "0" : ""}${seconds}\nHãy nhớ tải đề về trước khi tắt !!!`;
-        countdownTimeLeft--;
-      }, 1000);
+      }
+      return "welcome-screen";
+    }
 
-      // Auto-show countdown every 30 seconds for 5 seconds
-      autoShowInterval = setInterval(() => {
-        if (!countdownPanel.classList.contains("hidden")) return; // Skip if already visible
-        showCountdown();
-      }, 30000);
+    async function restoreAdminState() {
+      const adminState = localStorage.getItem("adminState");
+      if (adminState) {
+        const state = JSON.parse(adminState);
+        if (state.isAdmin && state.user) {
+          user = state.user;
+          isAdmin = true;
+          selectedQuizId = state.selectedQuizId;
+          isDirectTestMode = state.isDirectTestMode;
+          isTestEnded = state.isTestEnded;
+          currentAdminStep = state.currentAdminStep;
 
-      // Toggle countdown on click
-      countdownToggle.addEventListener("click", () => {
-        if (countdownPanel.classList.contains("hidden")) {
-          showCountdown();
-        } else {
-          hideCountdown();
+          hideAllScreens();
+          if (state.screen === "quiz-list-screen") {
+            quizListScreen.classList.remove("hidden");
+            adminOptions.classList.remove("hidden");
+            adminControls.classList.remove("hidden");
+            if (selectedQuizId) {
+              assignBtn.classList.remove("hidden");
+              directTestBtn.classList.remove("hidden");
+            }
+            await loadQuizzes();
+          } else if (state.screen === "direct-test-screen") {
+            directTestScreen.classList.remove("hidden");
+            endDirectTestBtn.disabled = isTestEnded;
+            if (isTestEnded) {
+              await fetchDirectResults();
+            }
+          } else if (state.screen === "upload-quizzes") {
+            uploadQuizzesSection.classList.remove("hidden");
+          } else if (state.screen === "history-screen") {
+            historyScreen.classList.remove("hidden");
+            await loadHistory();
+          } else if (state.screen.startsWith("admin-step-")) {
+            document.getElementById(state.screen).classList.remove("hidden");
+          }
+
+          initializeWebSocket();
+          downloadNotice.classList.add("hidden");
+          return true;
         }
-      });
-
-      // Initial show
-      showCountdown();
+      }
+      return false;
     }
 
-    // Start countdown when the page loads
-    startCountdown();
-
-    function showAdminLogin() {
+    function hideAllScreens() {
       welcomeScreen.classList.add("hidden");
-      adminLogin.classList.remove("hidden");
-      studentLogin.classList.add("hidden");
-      notification.innerText = "";
-      countdownToggle.classList.add("hidden");
-      countdownPanel.classList.add("hidden");
-    }
-
-    function showStudentLogin() {
-      welcomeScreen.classList.add("hidden");
-      adminLogin.classList.add("hidden");
-      studentLogin.classList.remove("hidden");
-      notification.innerText = "";
-      countdownToggle.classList.add("hidden");
-      countdownPanel.classList.add("hidden");
-    }
-
-    function showWelcomeScreen() {
-      welcomeScreen.classList.remove("hidden");
       adminLogin.classList.add("hidden");
       studentLogin.classList.add("hidden");
       quizListScreen.classList.add("hidden");
+      directTestScreen.classList.add("hidden");
+      uploadQuizzesSection.classList.add("hidden");
+      historyScreen.classList.add("hidden");
       quizContainer.classList.add("hidden");
       resultScreen.classList.add("hidden");
       document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
-      uploadQuizzesSection.classList.add("hidden");
+    }
+
+    function clearState() {
+      localStorage.removeItem("adminState");
+    }
+
+    function showDownloadNotice() {
+      downloadNotice.classList.remove("hidden");
+      setTimeout(() => {
+        downloadNotice.classList.add("hidden");
+      }, 5000);
+    }
+
+    function startDownloadNotice() {
+      showDownloadNotice();
+      setInterval(() => {
+        if (!downloadNotice.classList.contains("hidden")) return;
+        showDownloadNotice();
+      }, 30000);
+    }
+
+    function showAdminLogin() {
+      hideAllScreens();
+      adminLogin.classList.remove("hidden");
+      notification.innerText = "";
+      downloadNotice.classList.add("hidden");
+      saveAdminState();
+    }
+
+    function showStudentLogin() {
+      hideAllScreens();
+      studentLogin.classList.remove("hidden");
+      notification.innerText = "";
+      downloadNotice.classList.add("hidden");
+    }
+
+    function showWelcomeScreen() {
+      hideAllScreens();
+      welcomeScreen.classList.remove("hidden");
       notification.innerText = "";
       user = null;
       isAdmin = false;
+      selectedQuizId = null;
+      isDirectTestMode = false;
+      isTestEnded = false;
+      currentAdminStep = 0;
+      currentQuizPart = 0;
       if (socket) {
         socket.close();
         socket = null;
       }
-      countdownToggle.classList.remove("hidden");
-      showCountdown(); // Show countdown on welcome screen
+      clearState();
+      downloadNotice.classList.remove("hidden");
+      startDownloadNotice();
+    }
+
+    function showHistoryScreen() {
+      hideAllScreens();
+      historyScreen.classList.remove("hidden");
+      loadHistory();
+      saveAdminState();
     }
 
     function initializeWebSocket() {
@@ -388,15 +540,21 @@
         socket = new WebSocket(wsProtocol + location.host);
         socket.onopen = () => {
           console.log("WebSocket connected successfully.");
+          if (user && user.name) {
+            socket.send(JSON.stringify({ type: "login", username: user.name }));
+          }
+          socket.send(JSON.stringify({ type: "requestQuizStatus" }));
+          notification.innerText = "";
         };
         socket.onmessage = handleWebSocketMessage;
         socket.onerror = (error) => {
           console.error("WebSocket error:", error);
-          notification.innerText = "Không thể kết nối WebSocket. Một số tính năng có thể không hoạt động.";
+          notification.innerText = "Lỗi kết nối WebSocket. Một số thông tin (như số bài nộp) có thể không cập nhật.";
         };
         socket.onclose = () => {
           console.log("WebSocket closed. Attempting to reconnect...");
           socket = null;
+          notification.innerText = "Mất kết nối WebSocket. Đang thử kết nối lại...";
           setTimeout(initializeWebSocket, 3000);
         };
       } catch (error) {
@@ -416,14 +574,14 @@
         }
         user = { name: profile.name, email: profile.email };
         isAdmin = true;
-        adminLogin.classList.add("hidden");
+        hideAllScreens();
         quizListScreen.classList.remove("hidden");
         adminOptions.classList.remove("hidden");
         adminControls.classList.remove("hidden");
         initializeWebSocket();
         await loadQuizzes();
-        countdownToggle.classList.add("hidden");
-        countdownPanel.classList.add("hidden");
+        downloadNotice.classList.add("hidden");
+        saveAdminState();
       } catch (error) {
         console.error("Error during Admin login:", error);
         notification.innerText = "Đăng nhập Admin thất bại. Vui lòng thử lại hoặc kiểm tra Client ID.";
@@ -433,53 +591,74 @@
 
     studentNameForm.onsubmit = async (e) => {
       e.preventDefault();
+      const nameInput = document.getElementById("student-name");
+      const name = nameInput.value.trim();
+      
+      if (!name) {
+        notification.innerText = "Vui lòng nhập tên!";
+        return;
+      }
+      if (name.length > 50) {
+        notification.innerText = "Tên không được dài quá 50 ký tự!";
+        return;
+      }
+
+      user = { name };
+      isAdmin = false;
+      hideAllScreens();
+      quizListScreen.classList.remove("hidden");
+      adminOptions.classList.add("hidden");
+      adminControls.classList.add("hidden");
+      downloadNotice.classList.add("hidden");
+
+      initializeWebSocket();
       try {
-        const name = document.getElementById("student-name").value.trim();
-        if (!name) {
-          notification.innerText = "Vui lòng nhập tên!";
-          return;
-        }
-        user = { name };
-        isAdmin = false;
-        studentLogin.classList.add("hidden");
-        quizListScreen.classList.remove("hidden");
-        adminOptions.classList.add("hidden");
-        adminControls.classList.add("hidden");
-        initializeWebSocket();
         await loadQuizzes();
-        countdownToggle.classList.add("hidden");
-        countdownPanel.classList.add("hidden");
       } catch (error) {
-        console.error("Error during Student login:", error);
-        notification.innerText = "Đăng nhập học sinh thất bại. Vui lòng thử lại.";
-        showWelcomeScreen();
+        console.error("Error loading quizzes:", error);
+        notification.innerText = "Không thể tải danh sách đề thi. Vui lòng thử lại.";
+        quizList.innerHTML = "<p>Lỗi khi tải danh sách đề thi. Vui lòng làm mới trang.</p>";
       }
     };
 
     function backToQuizList() {
+      hideAllScreens();
       quizListScreen.classList.remove("hidden");
-      uploadQuizzesSection.classList.add("hidden");
-      document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
-      quizContainer.classList.add("hidden");
-      resultScreen.classList.add("hidden");
+      if (isAdmin) {
+        adminOptions.classList.remove("hidden");
+        adminControls.classList.remove("hidden");
+        if (selectedQuizId) {
+          assignBtn.classList.remove("hidden");
+          directTestBtn.classList.remove("hidden");
+        }
+      } else {
+        adminOptions.classList.add("hidden");
+        adminControls.classList.add("hidden");
+      }
       notification.innerText = "";
-      countdownToggle.classList.add("hidden");
-      countdownPanel.classList.add("hidden");
+      isDirectTestMode = false;
+      isTestEnded = false;
+      endDirectTestBtn.disabled = false;
+      directResultsTable.classList.add("hidden");
+      downloadNotice.classList.add("hidden");
       loadQuizzes();
+      if (isAdmin) saveAdminState();
     }
 
     function createNewQuiz() {
-      quizListScreen.classList.add("hidden");
+      hideAllScreens();
       document.getElementById("admin-step-audio").classList.remove("hidden");
-      countdownToggle.classList.add("hidden");
-      countdownPanel.classList.add("hidden");
+      currentAdminStep = 0;
+      notification.innerText = "";
+      downloadNotice.classList.add("hidden");
+      saveAdminState();
     }
 
     function showUploadQuizzes() {
-      quizListScreen.classList.add("hidden");
+      hideAllScreens();
       uploadQuizzesSection.classList.remove("hidden");
-      countdownToggle.classList.add("hidden");
-      countdownPanel.classList.add("hidden");
+      downloadNotice.classList.add("hidden");
+      saveAdminState();
     }
 
     async function uploadQuizzes() {
@@ -533,14 +712,54 @@
       }
     }
 
+    async function clearDatabase() {
+      if (!confirm("Bạn có chắc muốn xóa toàn bộ database? Hành động này không thể hoàn tác!")) return;
+      try {
+        const res = await fetch("/clear-database", {
+          method: "DELETE",
+        });
+        const result = await res.json();
+        notification.innerText = result.message;
+        if (res.ok) {
+          selectedQuizId = null;
+          loadQuizzes();
+          if (isAdmin) saveAdminState();
+        } else {
+          throw new Error(result.message || 'Lỗi không xác định');
+        }
+      } catch (error) {
+        console.error("Error clearing database:", error);
+        notification.innerText = `Lỗi khi xóa database: ${error.message}. Vui lòng thử lại.`;
+      }
+    }
+
+    async function fetchWithRetry(url, retries = 5, delay = 2000) {
+      for (let i = 0; i < retries; i++) {
+        try {
+          const res = await fetch(url);
+          if (res.ok) return res;
+          throw new Error(`HTTP error! Status: ${res.status}`);
+        } catch (error) {
+          if (i === retries - 1) throw error;
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+
     async function loadQuizzes() {
       const url = isAdmin ? `/quizzes?email=${encodeURIComponent(user.email)}` : '/quizzes';
       try {
-        const res = await fetch(url);
-        if (!res.ok) {
-          throw new Error(`HTTP error! Status: ${res.status}`);
-        }
+        const res = await fetchWithRetry(url);
         const quizzes = await res.json();
+        let currentQuizId = selectedQuizId;
+        try {
+          const statusRes = await fetchWithRetry('/quiz-status');
+          const status = await statusRes.json();
+          currentQuizId = status.quizId || currentQuizId;
+          quizStatus.innerText = status.quizId ? `Đề thi hiện tại: ${status.quizName}` : "Chưa có đề thi được chọn.";
+        } catch (statusError) {
+          console.warn("Failed to fetch quiz status:", statusError);
+        }
         quizList.innerHTML = "";
         if (quizzes.length === 0) {
           quizList.innerHTML = "<p>Chưa có đề thi nào.</p>";
@@ -548,18 +767,18 @@
           quizzes.forEach(quiz => {
             const div = document.createElement("div");
             div.className = "flex items-center space-x-2";
+            const isSelected = currentQuizId === quiz.quizId;
             if (isAdmin) {
               div.innerHTML = `
-                <span>${quiz.quizName}</span>
-                <button onclick="selectQuiz('${quiz.quizId}')" class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">Chọn để kiểm soát</button>
-                <button onclick="startQuiz('${quiz.quizId}')" class="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">Bắt đầu làm bài</button>
+                <span class="text-lg font-medium">${quiz.quizName}${isSelected ? ' ✅' : ''}</span>
+                <button onclick="selectQuiz('${quiz.quizId}')" class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">Chọn</button>
                 <button onclick="downloadQuizzes('${quiz.quizId}')" class="bg-purple-500 text-white px-2 py-1 rounded hover:bg-purple-600">Tải xuống</button>
                 <button onclick="deleteQuiz('${quiz.quizId}')" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Xóa</button>
               `;
             } else {
               div.innerHTML = `
-                <span>${quiz.quizName}</span>
-                <button onclick="startQuiz('${quiz.quizId}')" class="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">Bắt đầu làm bài</button>
+                <span class="text-lg font-medium">${quiz.quizName}${isSelected ? ' ✅' : ''}</span>
+                <button onclick="startQuiz('${quiz.quizId}')" class="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 ${quiz.isAssigned ? '' : 'hidden'}">Bắt đầu làm bài</button>
               `;
             }
             quizList.appendChild(div);
@@ -568,7 +787,7 @@
       } catch (error) {
         console.error("Error loading quizzes:", error);
         notification.innerText = "Không thể tải danh sách đề thi. Vui lòng thử lại.";
-        quizList.innerHTML = "<p>Lỗi khi tải danh sách đề thi.</p>";
+        quizList.innerHTML = "<p>Lỗi khi tải danh sách đề thi. Vui lòng làm mới trang.</p>";
       }
     }
 
@@ -581,7 +800,9 @@
         const result = await res.json();
         notification.innerText = result.message;
         if (res.ok) {
+          if (selectedQuizId === quizId) selectedQuizId = null;
           loadQuizzes();
+          if (isAdmin) saveAdminState();
         }
       } catch (error) {
         console.error("Error deleting quiz:", error);
@@ -598,27 +819,151 @@
         });
         const result = await res.json();
         if (res.ok) {
-          const timeLimit = prompt("Nhập thời gian làm bài (phút, tối đa 120):", "120");
-          if (timeLimit === null) return;
-          let timeLimitSeconds = parseInt(timeLimit) * 60;
-          if (isNaN(timeLimitSeconds) || timeLimitSeconds <= 0 || timeLimitSeconds > 7200) {
-            notification.innerText = "Thời gian không hợp lệ! Sử dụng mặc định 120 phút.";
-            timeLimitSeconds = 7200;
+          selectedQuizId = quizId;
+          assignBtn.classList.remove("hidden");
+          directTestBtn.classList.remove("hidden");
+          await loadQuizzes();
+          notification.innerText = `Đã chọn đề: ${result.quizName}`;
+          if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: "quizSelected", quizId }));
           }
-          startBtn.classList.remove("hidden");
-          startBtn.onclick = () => {
-            if (socket && socket.readyState === WebSocket.OPEN) {
-              socket.send(JSON.stringify({ type: "start", timeLimit: timeLimitSeconds }));
-            } else {
-              notification.innerText = "Không thể gửi tín hiệu bắt đầu. Kết nối WebSocket không hoạt động.";
-            }
-          };
+          saveAdminState();
         } else {
           notification.innerText = result.message;
         }
       } catch (error) {
         console.error("Error selecting quiz:", error);
         notification.innerText = "Lỗi khi chọn đề thi. Vui lòng thử lại.";
+      }
+    }
+
+    async function assignQuiz() {
+      if (!selectedQuizId) {
+        notification.innerText = "Vui lòng chọn một đề thi trước!";
+        return;
+      }
+      const timeLimit = prompt("Nhập thời gian làm bài (phút, tối đa 120):", "120");
+      if (timeLimit === null) return;
+      let timeLimitSeconds = parseInt(timeLimit) * 60;
+      if (isNaN(timeLimitSeconds) || timeLimitSeconds <= 0 || timeLimitSeconds > 7200) {
+        notification.innerText = "Thời gian không hợp lệ! Sử dụng mặc định 120 phút.";
+        timeLimitSeconds = 7200;
+      }
+      try {
+        const res = await fetch("/assign-quiz", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ quizId: selectedQuizId, timeLimit: timeLimitSeconds }),
+        });
+        const result = await res.json();
+        if (res.ok) {
+          notification.innerText = "Học sinh đã có thể làm bài!";
+          if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: "quizAssigned", quizId: selectedQuizId, timeLimit: timeLimitSeconds }));
+          }
+          await loadQuizzes();
+          saveAdminState();
+        } else {
+          notification.innerText = result.message;
+        }
+      } catch (error) {
+        console.error("Error assigning quiz:", error);
+        notification.innerText = "Lỗi khi giao đề thi. Vui lòng thử lại.";
+      }
+    }
+
+    async function startDirectTest() {
+      if (!selectedQuizId) {
+        notification.innerText = "Vui lòng chọn một đề thi trước!";
+        return;
+      }
+      const timeLimit = prompt("Nhập thời gian làm bài (phút, tối đa 120):", "120");
+      if (timeLimit === null) return;
+      let timeLimitSeconds = parseInt(timeLimit) * 60;
+      if (isNaN(timeLimitSeconds) || timeLimitSeconds <= 0 || timeLimitSeconds > 7200) {
+        notification.innerText = "Thời gian không hợp lệ! Sử dụng mặc định 120 phút.";
+        timeLimitSeconds = 7200;
+      }
+      try {
+        const res = await fetch("/select-quiz", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ quizId: selectedQuizId }),
+        });
+        const result = await res.json();
+        if (res.ok) {
+          isDirectTestMode = true;
+          isTestEnded = false;
+          hideAllScreens();
+          directTestScreen.classList.remove("hidden");
+          directResultsTable.classList.add("hidden");
+          endDirectTestBtn.disabled = false;
+          directParticipantCount.innerText = "Số người tham gia: 0";
+          directSubmittedCount.innerText = "Số bài đã nộp: 0";
+          if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: "start", timeLimit: timeLimitSeconds }));
+          }
+          notification.innerText = "Đã bắt đầu kiểm tra trực tiếp.";
+          saveAdminState();
+        } else {
+          notification.innerText = result.message;
+        }
+      } catch (error) {
+        console.error("Error starting direct test:", error);
+        notification.innerText = "Lỗi khi bắt đầu kiểm tra trực tiếp. Vui lòng thử lại.";
+      }
+    }
+
+    async function endDirectTest() {
+      if (isTestEnded) {
+        notification.innerText = "Kiểm tra đã kết thúc!";
+        return;
+      }
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "end" }));
+        isTestEnded = true;
+        endDirectTestBtn.disabled = true;
+        await fetchDirectResults();
+        saveAdminState();
+      } else {
+        notification.innerText = "Không thể gửi tín hiệu kết thúc. Kết nối WebSocket không hoạt động.";
+        await fetchDirectResults();
+      }
+    }
+
+    async function fetchDirectResults() {
+      const retries = 3;
+      const delay = 2000;
+      for (let i = 0; i < retries; i++) {
+        try {
+          const res = await fetch("/direct-results");
+          if (!res.ok) {
+            throw new Error(`HTTP error! Status: ${res.status}`);
+          }
+          const results = await res.json();
+          directResultsBody.innerHTML = "";
+          if (results.length === 0) {
+            directResultsBody.innerHTML = "<tr><td colspan='3' class='border p-2 text-center'>Chưa có kết quả nào.</td></tr>";
+          } else {
+            results.forEach(result => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td class="border p-2">${result.username || 'Unknown'}</td>
+                <td class="border p-2">${result.score || 0}</td>
+                <td class="border p-2">${result.submittedAt ? new Date(result.submittedAt).toLocaleString() : 'N/A'}</td>
+              `;
+              directResultsBody.appendChild(tr);
+            });
+          }
+          directResultsTable.classList.remove("hidden");
+          return;
+        } catch (error) {
+          console.error(`Attempt ${i + 1} failed:`, error);
+          if (i === retries - 1) {
+            notification.innerText = "Lỗi khi tải kết quả kiểm tra trực tiếp. Vui lòng kiểm tra kết nối và thử lại.";
+          }
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       }
     }
 
@@ -632,16 +977,17 @@
         const result = await res.json();
         if (res.ok) {
           isAdminControlled = false;
-          timeLeft = 7200;
-          quizListScreen.classList.add("hidden");
+          timeLeft = result.timeLimit || 7200;
+          hideAllScreens();
           quizContainer.classList.remove("hidden");
           timerDisplay.classList.remove("hidden");
           audio.classList.remove("hidden");
           await loadAudio(1);
           await loadImages(1);
           startTimer();
-          countdownToggle.classList.add("hidden");
-          countdownPanel.classList.add("hidden");
+          currentQuizPart = 0;
+          updatePartDisplay();
+          downloadNotice.classList.add("hidden");
         } else {
           notification.innerText = result.message;
         }
@@ -677,10 +1023,10 @@
       div.innerHTML = `
         <label class="font-semibold">Câu ${num} (Part ${part})</label>
         <div class="mt-2 space-y-2">
-          <label class="block"><input type="radio" name="${id}" value="A" class="mr-2"> A</label>
-          <label class="block"><input type="radio" name="${id}" value="B" class="mr-2"> B</label>
-          <label class="block"><input type="radio" name="${id}" value="C" class="mr-2"> C</label>
-          <label class="block"><input type="radio" name="${id}" value="D" class="mr-2"> D</label>
+          <label class="flex items-center"><input type="radio" name="${id}" value="A" class="mr-2"> A</label>
+          <label class="flex items-center"><input type="radio" name="${id}" value="B" class="mr-2"> B</label>
+          <label class="flex items-center"><input type="radio" name="${id}" value="C" class="mr-2"> C</label>
+          <label class="flex items-center"><input type="radio" name="${id}" value="D" class="mr-2"> D</label>
         </div>
       `;
       return div;
@@ -722,21 +1068,56 @@
       try {
         const res = await fetch(`/images?part=${part}`);
         const images = await res.json();
-        imageDisplay.innerHTML = `<h3 class="text-lg font-semibold mb-2">Part ${part}</h3>`;
-        images.forEach(url => {
-          const img = document.createElement("img");
-          img.src = url;
-          img.className = "w-full max-w-xs mb-4 rounded";
-          imageDisplay.appendChild(img);
-        });
+        imageContent.innerHTML = "";
+        if (images.length === 0) {
+          imageContent.innerHTML = "<p class='text-gray-500'>Không có ảnh cho phần này.</p>";
+        } else {
+          images.forEach(url => {
+            const img = document.createElement("img");
+            img.src = url;
+            img.className = "w-full max-w-md mb-4 rounded shadow";
+            imageContent.appendChild(img);
+          });
+        }
+        imagePartNumber.innerText = part;
       } catch (error) {
         console.error("Error loading images:", error);
         notification.innerText = `Lỗi khi tải ảnh cho Part ${part}.`;
+        imageContent.innerHTML = "<p class='text-red-500'>Lỗi tải ảnh.</p>";
       }
     }
 
-    function nextAdminStep(step) {
-      if (step === 1) {
+    function updatePartDisplay() {
+      document.querySelectorAll(".part-section").forEach(section => {
+        section.classList.add("hidden");
+      });
+      const currentSection = document.getElementById(`quiz-part${currentQuizPart + 1}`);
+      if (currentSection) {
+        currentSection.classList.remove("hidden");
+        questionPartNumber.innerText = currentQuizPart + 1;
+      }
+    }
+
+    function nextQuizPart(current) {
+      if (current >= 7) return;
+      currentQuizPart = current;
+      updatePartDisplay();
+      loadImages(current + 1);
+      loadAudio(current + 1);
+    }
+
+    function prevQuizPart(current) {
+      if (current <= 1) return;
+      currentQuizPart = current - 1;
+      updatePartDisplay();
+      loadImages(current - 1);
+      loadAudio(current - 1);
+    }
+
+    function validateAndNextAdminStep(currentStep) {
+      if (currentStep > 7) return;
+
+      if (currentStep === 1) {
         const quizName = document.getElementById("quiz-name").value.trim();
         if (!quizName) {
           notification.innerText = "Vui lòng nhập tên đề thi!";
@@ -754,18 +1135,11 @@
             return;
           }
         }
-        document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
-        document.getElementById("admin-step-part1").classList.remove("hidden");
-        notification.innerText = "";
-        currentAdminStep = step;
-        return;
-      }
-
-      if (step >= 2 && step <= 7) {
-        const part = step - 1;
-        const imagesInput = document.getElementById(`images-part${part}`);
-        if (!imagesInput.files.length) {
-          notification.innerText = `Vui lòng tải ảnh cho Part ${part}!`;
+      } else {
+        const part = currentStep - 1;
+        const images = document.getElementById(`images-part${part}`).files;
+        if (images.length === 0) {
+          notification.innerText = `Vui lòng tải ít nhất một ảnh cho Part ${part}!`;
           return;
         }
         const answerKeyInput = document.getElementById(`answer-key-part${part}`).value.trim();
@@ -774,30 +1148,40 @@
           return;
         }
         const answers = answerKeyInput.split(",").map(a => a.trim().toUpperCase());
-        if (answers.length !== partAnswerCounts[part - 1] || !answers.every(a => ["A", "B", "C", "D"].includes(a))) {
-          notification.innerText = `Đáp án Part ${part} phải có đúng ${partAnswerCounts[part - 1]} câu, chỉ chứa A, B, C, D!`;
+        if (answers.length !== partAnswerCounts[part - 1]) {
+          notification.innerText = `Part ${part} phải có đúng ${partAnswerCounts[part - 1]} đáp án!`;
           return;
+        }
+        for (let i = 0; i < answers.length; i++) {
+          if (!['A', 'B', 'C', 'D'].includes(answers[i])) {
+            notification.innerText = `Đáp án cho Part ${part} phải là A, B, C hoặc D!`;
+            return;
+          }
         }
       }
 
-      document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
-      document.getElementById(`admin-step-part${step}`).classList.remove("hidden");
+      hideAllScreens();
+      document.getElementById(`admin-step-part${currentStep}`).classList.remove("hidden");
+      currentAdminStep = currentStep;
       notification.innerText = "";
-      currentAdminStep = step;
+      saveAdminState();
     }
 
-    function prevAdminStep(step) {
-      document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
-      if (step === 1) {
+    function prevAdminStep(currentStep) {
+      if (currentStep <= 1) {
+        hideAllScreens();
         document.getElementById("admin-step-audio").classList.remove("hidden");
+        currentAdminStep = 0;
       } else {
-        document.getElementById(`admin-step-part${step - 1}`).classList.remove("hidden");
+        hideAllScreens();
+        document.getElementById(`admin-step-part${currentStep - 1}`).classList.remove("hidden");
+        currentAdminStep = currentStep - 1;
       }
       notification.innerText = "";
-      currentAdminStep = step - 1;
+      saveAdminState();
     }
 
-    async function saveQuiz() {
+    async function validateAndSaveQuiz() {
       const quizName = document.getElementById("quiz-name").value.trim();
       if (!quizName) {
         notification.innerText = "Vui lòng nhập tên đề thi!";
@@ -821,6 +1205,10 @@
 
       for (let i = 1; i <= 7; i++) {
         const files = document.getElementById(`images-part${i}`).files;
+        if (files.length === 0) {
+          notification.innerText = `Vui lòng tái kiểm tra và tải ít nhất một ảnh cho Part ${i}!`;
+          return;
+        }
         for (let file of files) {
           formData.append(`images-part${i}`, file);
         }
@@ -839,7 +1227,11 @@
           notification.innerText = `Part ${part} phải có đúng ${partAnswerCounts[part - 1]} đáp án!`;
           return;
         }
-        for (let i = 0; i < partAnswerCounts[part - 1]; i++) {
+        for (let i = 0; i < answers.length; i++) {
+          if (!['A', 'B', 'C', 'D'].includes(answers[i])) {
+            notification.innerText = `Đáp án cho Part ${part} phải là A, B, C hoặc D!`;
+            return;
+          }
           answerKey[`q${questionIndex}`] = answers[i];
           questionIndex++;
         }
@@ -855,135 +1247,25 @@
         });
         const result = await res.json();
         notification.innerText = result.message;
-        document.querySelectorAll(".admin-step").forEach(step => step.classList.add("hidden"));
-        backToQuizList();
+        if (res.ok) {
+          backToQuizList();
+        } else {
+          throw new Error(result.message || "Lỗi không xác định");
+        }
       } catch (error) {
         console.error("Error saving quiz:", error);
-        notification.innerText = "Lỗi khi lưu đề thi. Vui lòng thử lại.";
-      }
-    }
-
-    function nextQuizPart(part) {
-      document.querySelectorAll(".quiz-part").forEach(p => p.classList.add("hidden"));
-      document.getElementById(`quiz-part${part + 1}`).classList.remove("hidden");
-      loadImages(part + 1);
-      loadAudio(part + 1);
-      currentQuizPart = part + 1;
-      notification.innerText = "";
-    }
-
-    function prevQuizPart(part) {
-      document.querySelectorAll(".quiz-part").forEach(p => p.classList.add("hidden"));
-      document.getElementById(`quiz-part${part}`).classList.remove("hidden");
-      loadImages(part);
-      loadAudio(part);
-      currentQuizPart = part;
-      notification.innerText = "";
-    }
-
-    function handleWebSocketMessage(event) {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === "start") {
-          if (!isAdmin) {
-            isAdminControlled = true;
-            timeLeft = msg.timeLimit || 7200;
-            quizListScreen.classList.add("hidden");
-            quizContainer.classList.remove("hidden");
-            timerDisplay.classList.remove("hidden");
-            audio.classList.remove("hidden");
-            loadAudio(1);
-            loadImages(1);
-            startTimer();
-            countdownToggle.classList.add("hidden");
-            countdownPanel.classList.add("hidden");
-          } else {
-            startBtn.classList.add("hidden");
-            endBtn.classList.remove("hidden");
-            reuseBtn.classList.add("hidden");
-            resultsTable.classList.add("hidden");
-          }
-        }
-        if (msg.type === "end") {
-          if (!isAdmin) {
-            submitQuiz();
-          } else {
-            endBtn.classList.add("hidden");
-            reuseBtn.classList.remove("hidden");
-            resultsTable.classList.remove("hidden");
-            fetchResults();
-          }
-        }
-        if (msg.type === "submitted") {
-          const who = msg.username === user.name ? "Bạn" : msg.username;
-          notification.innerText = `${who} đã nộp bài.`;
-        }
-        if (msg.type === "participantCount") {
-          if (isAdmin) participantCount.innerText = `Số người tham gia: ${msg.count}`;
-        }
-        if (msg.type === "submittedCount") {
-          if (isAdmin) submittedCount.innerText = `Số người đã nộp: ${msg.count}`;
-          resultSubmitted.innerText = `Số người đã nộp: ${msg.count}`;
-          resultSubmitted.classList.remove("hidden");
-        }
-        if (msg.type === "quizStatus") {
-          quizStatus.innerText = msg.quizExists ? "Đang có bài thi được chọn." : "";
-          if (isAdmin) {
-            startBtn.classList.toggle("hidden", !msg.quizExists);
-          }
-        }
-      } catch (error) {
-        console.error("Error handling WebSocket message:", error);
-        notification.innerText = "Lỗi khi xử lý thông điệp WebSocket.";
-      }
-    }
-
-    if (endBtn) {
-      endBtn.onclick = () => {
-        if (socket && socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify({ type: "end" }));
-        } else {
-          notification.innerText = "Không thể gửi tín hiệu kết thúc. Kết nối WebSocket không hoạt động.";
-        }
-      };
-    }
-    if (reuseBtn) {
-      reuseBtn.onclick = async () => {
-        try {
-          const res = await fetch("/reset", { method: "POST" });
-          const result = await res.json();
-          notification.innerText = result.message;
-          startBtn.classList.remove("hidden");
-          reuseBtn.classList.add("hidden");
-          resultsTable.classList.add("hidden");
-        } catch (error) {
-          console.error("Error resetting quiz:", error);
-          notification.innerText = "Lỗi khi đặt lại bài thi. Vui lòng thử lại.";
-        }
-      };
-    }
-
-    async function fetchResults() {
-      try {
-        const res = await fetch("/results");
-        const results = await res.json();
-        resultsBody.innerHTML = "";
-        results.forEach(result => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td class="border p-2">${result.username}</td>
-            <td class="border p-2">${result.score}/200</td>
-            <td class="border p-2">${new Date(result.timestamp).toLocaleString()}</td>
-          `;
-          resultsBody.appendChild(tr);
-        });
-      } catch (error) {
-        console.error("Error fetching results:", error);
-        notification.innerText = "Lỗi khi tải kết quả. Vui lòng thử lại.";
+        notification.innerText = `Lỗi khi lưu đề thi: ${error.message}. Vui lòng thử lại.`;
       }
     }
 
     async function submitQuiz() {
+      if (!user || !user.name) {
+        console.error("No user logged in");
+        notification.innerText = "Lỗi: Vui lòng nhập tên lại.";
+        showWelcomeScreen();
+        return;
+      }
+
       const formData = new FormData(quizForm);
       const answers = {};
       formData.forEach((val, key) => answers[key] = val);
@@ -994,38 +1276,185 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username: user.name, answers }),
         });
-        const result = await res.json();
-        if (res.ok) {
-          quizContainer.classList.add("hidden");
-          resultScreen.classList.remove("hidden");
-          timerDisplay.classList.add("hidden");
-          audio.classList.add("hidden");
-          resultScore.innerText = `Điểm: ${result.score}/200`;
-          resultTime.innerText = `Thời gian nộp: ${new Date().toLocaleString()}`;
-          quizForm.querySelector("button[type=submit]").disabled = true;
-          clearInterval(timerInterval);
-          if (isAdminControlled && socket && socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ type: "submitted", username: user.name }));
-          }
-          countdownToggle.classList.remove("hidden");
-          showCountdown(); // Show countdown after submitting
-        } else {
-          notification.innerText = result.message || "Lỗi khi nộp bài!";
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.message || `Lỗi server: ${res.status}`);
         }
+
+        const result = await res.json();
+        hideAllScreens();
+        resultScreen.classList.remove("hidden");
+        timerDisplay.classList.add("hidden");
+        audio.classList.add("hidden");
+        resultScore.innerText = `Điểm: ${result.score}/200`;
+        resultTime.innerText = `Thời gian nộp: ${new Date().toLocaleString()}`;
+        quizForm.querySelector("button[type=submit]").disabled = true;
+        clearInterval(timerInterval);
+
+        if (isAdminControlled && socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: "submitted", username: user.name }));
+        }
+
+        downloadNotice.classList.remove("hidden");
+        showDownloadNotice();
       } catch (error) {
         console.error("Error submitting quiz:", error);
         notification.innerText = "Lỗi khi nộp bài. Vui lòng thử lại.";
       }
     }
 
-    quizForm.onsubmit = async (e) => {
-      e.preventDefault();
-      await submitQuiz();
-    };
+    async function loadHistory() {
+      try {
+        const res = await fetch("/history");
+        const results = await res.json();
+        historyBody.innerHTML = "";
+        results.forEach(result => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td class="border p-2"><input type="checkbox" class="result-checkbox" data-id="${result.id}"></td>
+            <td class="border p-2">${result.username}</td>
+            <td class="border p-2">${result.score}</td>
+            <td class="border p-2">${new Date(result.submittedAt).toLocaleString()}</td>
+          `;
+          historyBody.appendChild(tr);
+        });
+      } catch (error) {
+        console.error("Error loading history:", error);
+        notification.innerText = "Lỗi khi tải lịch sử điểm. Vui lòng thử lại.";
+      }
+    }
 
-    function logout() {
+    async function deleteSelectedResults() {
+      const checkboxes = document.querySelectorAll(".result-checkbox:checked");
+      const ids = Array.from(checkboxes).map(cb => cb.dataset.id);
+      if (ids.length === 0) {
+        notification.innerText = "Vui lòng chọn ít nhất một kết quả để xóa!";
+        return;
+      }
+      if (!confirm(`Bạn có chắc muốn xóa ${ids.length} kết quả đã chọn?`)) return;
+      try {
+        const res = await fetch("/delete-results", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids }),
+        });
+        const result = await res.json();
+        notification.innerText = result.message;
+        if (res.ok) {
+          loadHistory();
+        }
+      } catch (error) {
+        console.error("Error deleting results:", error);
+        notification.innerText = "Lỗi khi xóa kết quả. Vui lòng thử lại.";
+      }
+    }
+
+    function toggleSelectAll() {
+      const selectAll = document.getElementById("select-all");
+      const checkboxes = document.querySelectorAll(".result-checkbox");
+      checkboxes.forEach(cb => cb.checked = selectAll.checked);
+    }
+
+    function handleWebSocketMessage(event) {
+      try {
+        if (!event.data) {
+          console.warn("Received empty WebSocket message");
+          return;
+        }
+        const message = JSON.parse(event.data);
+        if (message.type === "quizStatus") {
+          quizStatus.innerText = message.quizId ? `Đề thi hiện tại: ${message.quizName}` : "Chưa có đề thi được chọn.";
+          selectedQuizId = message.quizId;
+          if (isAdmin && message.quizId) {
+            assignBtn.classList.remove("hidden");
+            directTestBtn.classList.remove("hidden");
+          }
+          loadQuizzes();
+        } else if (message.type === "participants" || message.type === "participantCount") {
+          participantCount.innerText = `Số người tham gia: ${message.count || 0}`;
+          directParticipantCount.innerText = `Số người tham gia: ${message.count || 0}`;
+        } else if (message.type === "submitted" || message.type === "submittedCount") {
+          const count = message.count !== undefined ? message.count : 0;
+          submittedCount.innerText = `Số bài đã nộp: ${count}`;
+          directSubmittedCount.innerText = `Số bài đã nộp: ${count}`;
+          if (isAdmin && message.results) {
+            resultsBody.innerHTML = "";
+            message.results.forEach(result => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td class="border p-2">${result.username || 'Unknown'}</td>
+                <td class="border p-2">${result.score || 0}</td>
+                <td class="border p-2">${result.submittedAt ? new Date(result.submittedAt).toLocaleString() : 'N/A'}</td>
+              `;
+              resultsBody.appendChild(tr);
+            });
+            resultsTable.classList.remove("hidden");
+          }
+        } else if (message.type === "start") {
+          isAdminControlled = true;
+          timeLeft = message.timeLimit || 7200;
+          if (!isAdmin) {
+            hideAllScreens();
+            quizContainer.classList.remove("hidden");
+            timerDisplay.classList.remove("hidden");
+            audio.classList.remove("hidden");
+            loadAudio(1);
+            loadImages(1);
+            startTimer();
+            currentQuizPart = 0;
+            updatePartDisplay();
+            downloadNotice.classList.add("hidden");
+            notification.innerText = "Bài thi đã bắt đầu!";
+          }
+        } else if (message.type === "end") {
+          if (!isAdmin) {
+            submitQuiz();
+            notification.innerText = "Bài thi đã kết thúc!";
+          } else {
+            isTestEnded = true;
+            endDirectTestBtn.disabled = true;
+            fetchDirectResults();
+            saveAdminState();
+          }
+        } else if (message.type === "error") {
+          notification.innerText = message.message;
+        }
+      } catch (error) {
+        console.error("Error handling WebSocket message:", error);
+        notification.innerText = "Lỗi khi xử lý thông tin từ server. Vui lòng kiểm tra kết nối.";
+      }
+    }
+
+    async function logout() {
+      try {
+        if (user && user.name) {
+          await fetch("/logout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: user.name }),
+          });
+        }
+      } catch (error) {
+        console.error("Error during logout:", error);
+      }
       showWelcomeScreen();
     }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      if (await restoreAdminState()) {
+        console.log("Admin state restored");
+      } else {
+        showWelcomeScreen();
+      }
+      assignBtn.addEventListener("click", assignQuiz);
+      directTestBtn.addEventListener("click", startDirectTest);
+      endDirectTestBtn.addEventListener("click", endDirectTest);
+      quizForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        submitQuiz();
+      });
+    });
   </script>
 </body>
 </html>
