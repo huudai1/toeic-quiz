@@ -3,19 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="google-signin-client_id" content="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com">
-  <title>Quiz App</title>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <meta name="google-signin-client_id" content="207656291282-cedkb5qkbeek0s9dbaca2o3ia3svjesv.apps.googleusercontent.com">
+  <title>TOEIC Quiz App</title>
+  <!-- Tải Google Sign-In script với xử lý lỗi -->
+  <script src="https://accounts.google.com/gsi/client" async defer onload="onGoogleScriptLoad()" onerror="onGoogleScriptError()"></script>
+  <!-- Tải Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 font-sans">
+  <!-- Thông báo tải ứng dụng -->
   <div id="download-notice" class="fixed top-4 right-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 hidden">
     <p class="font-bold">Thông báo</p>
     <p>Vui lòng tải xuống ứng dụng của chúng tôi để có trải nghiệm tốt nhất!</p>
   </div>
 
+  <!-- Màn hình chào mừng -->
   <div id="welcome-screen" class="container mx-auto p-4">
-    <h1 class="text-3xl font-bold mb-4">Quiz App</h1>
+    <h1 class="text-3xl font-bold mb-4">TOEIC Quiz App</h1>
     <p id="notification" class="text-red-500 mb-4"></p>
     <div class="space-y-4">
       <button onclick="showAdminLogin()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Đăng nhập Admin</button>
@@ -23,6 +27,7 @@
     </div>
   </div>
 
+  <!-- Màn hình đăng nhập Admin -->
   <div id="admin-login" class="container mx-auto p-4 hidden">
     <h1 class="text-3xl font-bold mb-4">Đăng nhập Admin</h1>
     <p id="notification" class="text-red-500 mb-4"></p>
@@ -31,10 +36,12 @@
          data-callback="handleAdminCredentialResponse"
          data-auto_prompt="false">
     </div>
-    <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline" data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left"></div>
+    <div id="google-signin-button" class="g_id_signin hidden" data-type="standard" data-size="large" data-theme="outline" data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left"></div>
+    <p id="google-script-error" class="text-red-500 mb-4 hidden">Không thể tải Google Sign-In. Vui lòng kiểm tra mạng hoặc thử lại sau.</p>
     <button onclick="showWelcomeScreen()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Quay lại</button>
   </div>
 
+  <!-- Màn hình đăng nhập Học sinh -->
   <div id="student-login" class="container mx-auto p-4 hidden">
     <h1 class="text-3xl font-bold mb-4">Đăng nhập Học sinh</h1>
     <p id="notification" class="text-red-500 mb-4"></p>
