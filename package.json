@@ -4,16 +4,18 @@
   "description": "TOEIC Quiz Application",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "build": "npx tailwindcss -i ./input.css -o ./public/output.css --minify"
   },
   "dependencies": {
-    "archiver": "5.3.1",
     "express": "^4.21.2",
-    "multer": "1.4.5-lts.1",
-    "qs": "^6.11.0",
-    "unzipper": "0.10.11",
-    "uuid": "8.3.2",
-    "ws": "^8.18.2"
+    "mongoose": "^7.6.3",
+    "multer": "^1.4.5-lts.1",
+    "ws": "^8.18.2",
+    "adm-zip": "^0.5.10"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
   },
   "repository": {
     "type": "git",
@@ -26,7 +28,7 @@
     "url": "https://github.com/huudai1/toeic-quiz/issues"
   },
   "homepage": "https://github.com/huudai1/toeic-quiz#readme",
-  "devDependencies": {
-    "tailwindcss": "^3.4.17"
+  "engines": {
+    "node": ">=18.x"
   }
 }
