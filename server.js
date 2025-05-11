@@ -4,14 +4,14 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const WebSocket = require('ws');
-const admZip = require('adm-zip');
+const unzipper = require('unzipper');
+const archiver = require('archiver');
 
 const app = express();
-const port = 3000;
-const wsPort = 8080;
+const port = process.env.PORT || 3000; // Dùng PORT từ Render hoặc fallback
 
 // Kết nối MongoDB
-mongoose.connect('mongodb://localhost:27017/quizApp', {
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/quizApp', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 }).then(() => {
@@ -29,7 +29,7 @@ const quizSchema = new mongoose.Schema({
   imageFiles: [{ part: Number, path: String }],
   createdAt: { type: Date, default: Date.now },
   isAssigned: { type: Boolean, default: false },
-  timeLimit: { type: Number, default: 7200 }, // Thời gian mặc định 120 phút
+  timeLimit: { type: Number, default: 7200 },
 });
 const Quiz = mongoose.model('Quiz', quizSchema);
 
@@ -49,7 +49,7 @@ const storage = multer.diskStorage({
     const fieldName = file.fieldname;
     let dir;
     if (fieldName.startsWith('audio-part')) {
-      dir = path.join(__dirname, 'uploads/audio');
+      dir = path.join(__dirname, 'Uploads/audio');
     } else if (fieldName.startsWith('images-part')) {
       dir = path.join(__dirname, 'Uploads/images');
     } else {
@@ -74,8 +74,12 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 app.use('/Uploads', express.static(path.join(__dirname, 'Uploads')));
 
-// WebSocket Server
-const wss = new WebSocket.Server({ port: wsPort });
+// Tạo HTTP server và tích hợp WebSocket
+const server = app.listen(port, () => {
+  console.log(`Server running at port ${port}`);
+});
+const wss = new WebSocket.Server({ server });
+
 let clients = new Map();
 let currentQuiz = null;
 let participants = new Set();
@@ -195,7 +199,7 @@ app.post('/save-quiz', upload.fields([
     }
 
     const parsedAnswerKey = JSON.parse(answerKey);
-    const expectedQuestions = 200; // Tổng số câu hỏi từ Part 1 đến Part 7
+    const expectedQuestions = 200;
     if (Object.keys(parsedAnswerKey).length !== expectedQuestions) {
       return res.status(400).json({ message: `Đáp án phải có đúng ${expectedQuestions} câu hỏi.` });
     }
@@ -247,7 +251,6 @@ app.delete('/delete-quiz/:quizId', async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy đề thi.' });
     }
 
-    // Xóa các file audio và ảnh
     for (let file of [...quiz.audioFiles, ...quiz.imageFiles]) {
       try {
         await fs.unlink(path.join(__dirname, file.path));
@@ -434,7 +437,6 @@ app.post('/delete-results', async (req, res) => {
 
 app.delete('/clear-database', async (req, res) => {
   try {
-    // Xóa tất cả file trong thư mục Uploads
     const uploadDir = path.join(__dirname, 'Uploads');
     const deleteDir = async dir => {
       try {
@@ -455,7 +457,6 @@ app.delete('/clear-database', async (req, res) => {
     };
     await deleteDir(uploadDir);
 
-    // Xóa database
     await Quiz.deleteMany({});
     await Result.deleteMany({});
     currentQuiz = null;
@@ -502,29 +503,28 @@ app.post('/upload-quizzes-zip', upload.single('quizzes'), async (req, res) => {
     if (!file) {
       return res.status(400).json({ message: 'Vui lòng tải lên file ZIP.' });
     }
-    const zip = new admZip(file.path);
-    const zipEntries = zip.getEntries();
+    const zip = await unzipper.Open.file(file.path);
     let quizData = null;
     const audioFiles = [];
     const imageFiles = [];
 
-    for (const entry of zipEntries) {
-      if (entry.entryName.endsWith('.json')) {
-        quizData = JSON.parse(zip.readAsText(entry));
-      } else if (entry.entryName.startsWith('audio/')) {
-        const part = parseInt(entry.entryName.match(/part(\d)/)?.[1]);
+    for (const entry of zip.files) {
+      if (entry.path.endsWith('.json')) {
+        quizData = JSON.parse(await entry.buffer());
+      } else if (entry.path.startsWith('audio/')) {
+        const part = parseInt(entry.path.match(/part(\d)/)?.[1]);
         if (part) {
-          const fileName = `audio-part${part}-${Date.now()}${path.extname(entry.entryName)}`;
+          const fileName = `audio-part${part}-${Date.now()}${path.extname(entry.path)}`;
           const filePath = path.join(__dirname, 'Uploads/audio', fileName);
-          zip.extractEntryTo(entry, path.join(__dirname, 'Uploads/audio'), false, true);
+          await entry.stream().pipe(fs.createWriteStream(filePath)).promise();
           audioFiles.push({ part, path: `/Uploads/audio/${fileName}` });
         }
-      } else if (entry.entryName.startsWith('images/')) {
-        const part = parseInt(entry.entryName.match(/part(\d)/)?.[1]);
+      } else if (entry.path.startsWith('images/')) {
+        const part = parseInt(entry.path.match(/part(\d)/)?.[1]);
         if (part) {
-          const fileName = `images-part${part}-${Date.now()}${path.extname(entry.entryName)}`;
+          const fileName = `images-part${part}-${Date.now()}${path.extname(entry.path)}`;
           const filePath = path.join(__dirname, 'Uploads/images', fileName);
-          zip.extractEntryTo(entry, path.join(__dirname, 'Uploads/images'), false, true);
+          await entry.stream().pipe(fs.createWriteStream(filePath)).promise();
           imageFiles.push({ part, path: `/Uploads/images/${fileName}` });
         }
       }
@@ -557,18 +557,23 @@ app.get('/download-quiz-zip/:quizId', async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy đề thi.' });
     }
 
-    const zip = new admZip();
-    zip.addFile('quiz.json', Buffer.from(JSON.stringify({
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    res.set({
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename=quiz_${req.params.quizId}.zip`,
+    });
+    archive.pipe(res);
+
+    archive.append(JSON.stringify({
       quizName: quiz.quizName,
       answerKey: quiz.answerKey,
       createdBy: quiz.createdBy,
-    })));
+    }), { name: 'quiz.json' });
 
     for (const audio of quiz.audioFiles) {
       const filePath = path.join(__dirname, audio.path);
       try {
-        const data = await fs.readFile(filePath);
-        zip.addFile(`audio/part${audio.part}${path.extname(audio.path)}`, data);
+        archive.file(filePath, { name: `audio/part${audio.part}${path.extname(audio.path)}` });
       } catch (err) {
         console.warn(`Không thể thêm file audio ${audio.path}:`, err);
       }
@@ -577,20 +582,13 @@ app.get('/download-quiz-zip/:quizId', async (req, res) => {
     for (const image of quiz.imageFiles) {
       const filePath = path.join(__dirname, image.path);
       try {
-        const data = await fs.readFile(filePath);
-        zip.addFile(`images/part${image.part}/${path.basename(image.path)}`, data);
+        archive.file(filePath, { name: `images/part${image.part}/${path.basename(image.path)}` });
       } catch (err) {
         console.warn(`Không thể thêm file ảnh ${image.path}:`, err);
       }
     }
 
-    const zipBuffer = zip.toBuffer();
-    res.set({
-      'Content-Type': 'application/zip',
-      'Content-Disposition': `attachment; filename=quiz_${req.params.quizId}.zip`,
-      'Content-Length': zipBuffer.length,
-    });
-    res.send(zipBuffer);
+    await archive.finalize();
   } catch (err) {
     console.error('Error downloading quiz ZIP:', err);
     res.status(500).json({ message: 'Lỗi khi tải xuống file ZIP.' });
@@ -610,8 +608,4 @@ app.post('/logout', async (req, res) => {
     console.error('Error during logout:', err);
     res.status(500).json({ message: 'Lỗi khi đăng xuất.' });
   }
-});
-
-app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
 });
