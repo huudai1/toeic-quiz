@@ -59,12 +59,12 @@ const upload = multer({
 // Middleware
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'Uploads')));
-// Phục vụ các file tĩnh từ thư mục gốc hoặc thư mục public
-app.use(express.static(path.join(__dirname, 'public')));
+// Phục vụ các file tĩnh từ thư mục gốc
+app.use(express.static(__dirname));
 
 // Route cho root URL để phục vụ index.html
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // Endpoint lưu đề thi
