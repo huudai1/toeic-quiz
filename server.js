@@ -4,10 +4,10 @@ const path = require('path');
 const fs = require('fs').promises;
 const { createServer } = require('http');
 const { Server } = require('ws');
-const { v4: uuidv4 } = require('uuid'); // Thêm uuid để tạo ID duy nhất
+const { v4: uuidv4 } = require('uuid');
 
 const app = express();
-const port = process.env.PORT || 3000; // Sử dụng PORT từ Render hoặc mặc định 3000
+const port = process.env.PORT || 3000;
 
 // Tạo server HTTP và WebSocket
 const server = createServer(app);
@@ -59,6 +59,13 @@ const upload = multer({
 // Middleware
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'Uploads')));
+// Phục vụ các file tĩnh từ thư mục gốc hoặc thư mục public
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Route cho root URL để phục vụ index.html
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // Endpoint lưu đề thi
 app.post('/save-quiz', upload.fields([
@@ -140,7 +147,7 @@ app.post('/save-quiz', upload.fields([
     }
 
     // Lưu vào bộ nhớ
-    const quizId = uuidv4(); // Tạo ID duy nhất
+    const quizId = uuidv4();
     const quiz = {
       _id: quizId,
       quizName,
@@ -234,7 +241,7 @@ app.get('/quiz-status/:id', async (req, res) => {
   try {
     const quizResults = results.filter(r => r.quizId === req.params.id);
     res.status(200).json({
-      status: 'Đang diễn ra', // Có thể tùy chỉnh
+      status: 'Đang diễn ra',
       participants: quizResults.length,
       submitted: quizResults.length,
       results: quizResults.map(r => ({
