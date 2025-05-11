@@ -1,623 +1,757 @@
 const express = require('express');
-const { Server } = require('ws');
-const mongoose = require('mongoose');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
+const WebSocket = require('ws');
+const JSZip = require('jszip');
 const AdmZip = require('adm-zip');
-const { v4: uuidv4 } = require('uuid');
-const cors = require('cors');
+
 const app = express();
-const port = process.env.PORT || 3000;
+const port = 3000;
+const wsPort = 8080;
 
-app.use(cors());
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+// Đường dẫn lưu trữ dữ liệu
+const QUIZZES_FILE = path.join(__dirname, 'data', 'quizzes.json');
+const STATUS_FILE = path.join(__dirname, 'data', 'status.json');
+const RESULTS_FILE = path.join(__dirname, 'data', 'results.json');
 
+// Khởi tạo file nếu chưa tồn tại
+async function initFiles() {
+  await fs.mkdir(path.join(__dirname, 'data'), { recursive: true });
+  try {
+    await fs.access(QUIZZES_FILE);
+  } catch {
+    await fs.writeFile(QUIZZES_FILE, JSON.stringify([]));
+  }
+  try {
+    await fs.access(STATUS_FILE);
+  } catch {
+    await fs.writeFile(STATUS_FILE, JSON.stringify({}));
+  }
+  try {
+    await fs.access(RESULTS_FILE);
+  } catch {
+    await fs.writeFile(RESULTS_FILE, JSON.stringify([]));
+  }
+}
+initFiles();
+
+// Cấu hình Multer
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+  destination: async (req, file, cb) => {
+    const fieldName = file.fieldname;
+    let dir;
+    if (fieldName.startsWith('audio-part')) {
+      dir = path.join(__dirname, 'Uploads/audio');
+    } else if (fieldName.startsWith('images-part')) {
+      dir = path.join(__dirname, 'Uploads/images');
+    } else {
+      dir = path.join(__dirname, 'Uploads');
+    }
+    try {
+      await fs.mkdir(dir, { recursive: true });
+      cb(null, dir);
+    } catch (err) {
+      cb(err);
+    }
   },
   filename: (req, file, cb) => {
-    cb(null, `${uuidv4()}-${file.originalname}`);
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalName)}`);
   },
 });
-const upload = multer({ storage });
-
-mongoose.connect('mongodb://localhost:27017/quiz_app', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-}).then(() => {
-  console.log('Connected to MongoDB');
-}).catch(err => {
-  console.error('MongoDB connection error:', err);
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.fieldname.startsWith('audio-part') && !file.mimetype.startsWith('audio/')) {
+      return cb(new Error('File audio phải là định dạng audio!'));
+    }
+    if (file.fieldname.startsWith('images-part') && !file.mimetype.startsWith('image/')) {
+      return cb(new Error('File ảnh phải là định dạng ảnh!'));
+    }
+    if (file.fieldname === 'quizzes' && !['application/json', 'application/zip'].includes(file.mimetype)) {
+      return cb(new Error('File phải là .json hoặc .zip!'));
+    }
+    cb(null, true);
+  },
 });
 
-const quizSchema = new mongoose.Schema({
-  quizId: String,
-  quizName: String,
-  createdBy: String,
-  audio: [String],
-  images: { type: Map, of: [String] },
-  answerKey: { type: Map, of: String },
-  isAssigned: { type: Boolean, default: false },
-  timeLimit: { type: Number, default: 7200 },
-});
-const Quiz = mongoose.model('Quiz', quizSchema);
+// Middleware
+app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'Uploads')));
 
-const resultSchema = new mongoose.Schema({
-  quizId: String,
-  username: String,
-  answers: { type: Map, of: String },
-  score: Number,
-  submittedAt: Date,
-});
-const Result = mongoose.model('Result', resultSchema);
-
-const server = app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
-
-const wss = new Server({ server });
-let currentQuizId = null;
-let currentQuizName = null;
-let timeLimit = 7200;
-const clients = new Map();
-
-wss.on('connection', (ws) => {
-  const clientId = uuidv4();
-  clients.set(clientId, { ws, username: null });
-
-  ws.send(JSON.stringify({
-    type: 'quizStatus',
-    quizId: currentQuizId,
-    quizName: currentQuizName,
-  }));
-
-  ws.on('message', async (message) => {
+// WebSocket Server
+const wss = new WebSocket.Server({ port: wsPort });
+wss.on('connection', ws => {
+  ws.on('message', async message => {
     try {
       const data = JSON.parse(message);
-
       if (data.type === 'login') {
-        clients.set(clientId, { ws, username: data.username });
-        updateParticipantCount();
-      } else if (data.type === 'quizSelected') {
-        currentQuizId = data.quizId;
-        const quiz = await Quiz.findOne({ quizId: data.quizId });
-        currentQuizName = quiz ? quiz.quizName : null;
-        broadcast({
-          type: 'quizStatus',
-          quizId: currentQuizId,
-          quizName: currentQuizName,
-        });
-      } else if (data.type === 'quizAssigned') {
-        currentQuizId = data.quizId;
-        timeLimit = data.timeLimit || 7200;
-        const quiz = await Quiz.findOne({ quizId: data.quizId });
-        if (quiz) {
-          quiz.isAssigned = true;
-          quiz.timeLimit = timeLimit;
-          await quiz.save();
-          currentQuizName = quiz.quizName;
-          broadcast({
-            type: 'quizStatus',
-            quizId: currentQuizId,
-            quizName: currentQuizName,
-          });
+        const status = JSON.parse(await fs.readFile(STATUS_FILE));
+        if (!status.participants) status.participants = [];
+        if (!status.participants.includes(data.username)) {
+          status.participants.push(data.username);
+          await fs.writeFile(STATUS_FILE, JSON.stringify(status));
         }
-      } else if (data.type === 'start') {
-        timeLimit = data.timeLimit || 7200;
-        broadcast({ type: 'start', timeLimit });
-        updateParticipantCount();
-      } else if (data.type === 'end') {
-        broadcast({ type: 'end' });
-        await broadcastResults();
-      } else if (data.type === 'submitted') {
-        await broadcastResults();
+        broadcastParticipantCount(status.participants.length);
       } else if (data.type === 'requestQuizStatus') {
+        const status = JSON.parse(await fs.readFile(STATUS_FILE));
         ws.send(JSON.stringify({
           type: 'quizStatus',
-          quizId: currentQuizId,
-          quizName: currentQuizName,
+          quizId: status.quizId,
+          quizName: status.quizName,
+          isAssigned: status.isAssigned || false,
         }));
+      } else if (data.type === 'quizSelected') {
+        broadcast({
+          type: 'quizStatus',
+          quizId: data.quizId,
+          quizName: (await getQuizById(data.quizId)).quizName,
+        });
+      } else if (data.type === 'quizAssigned') {
+        broadcast({
+          type: 'quizStatus',
+          quizId: data.quizId,
+          quizName: (await getQuizById(data.quizId)).quizName,
+          isAssigned: true,
+        });
+      } else if (data.type === 'start') {
+        broadcast({ type: 'start', timeLimit: data.timeLimit });
+      } else if (data.type === 'end') {
+        broadcast({ type: 'end' });
+      } else if (data.type === 'submitted') {
+        const status = JSON.parse(await fs.readFile(STATUS_FILE));
+        const results = JSON.parse(await fs.readFile(RESULTS_FILE));
+        const result = results.find(r => r.studentName === data.username && r.quizId === status.quizId);
+        if (!status.submitted) status.submitted = [];
+        if (result) {
+          status.submitted.push({
+            username: data.username,
+            score: result.score,
+            submittedAt: result.submittedAt,
+          });
+          await fs.writeFile(STATUS_FILE, JSON.stringify(status));
+          broadcast({
+            type: 'submitted',
+            count: status.submitted.length,
+            results: status.submitted,
+          });
+        }
       }
     } catch (error) {
       console.error('WebSocket message error:', error);
-      ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
     }
-  });
-
-  ws.on('close', () => {
-    clients.delete(clientId);
-    updateParticipantCount();
   });
 });
 
-function broadcast(message) {
-  clients.forEach(client => {
-    if (client.ws.readyState === client.ws.OPEN) {
-      client.ws.send(JSON.stringify(message));
+function broadcast(data) {
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(data));
     }
   });
 }
 
-async function updateParticipantCount() {
-  const count = Array.from(clients.values()).filter(client => client.username).length;
+async function broadcastParticipantCount(count) {
   broadcast({ type: 'participantCount', count });
 }
 
-async function broadcastResults() {
-  try {
-    const results = await Result.find({ quizId: currentQuizId }).sort({ submittedAt: -1 });
-    const count = results.length;
-    broadcast({
-      type: 'submittedCount',
-      count,
-      results: results.map(r => ({
-        username: r.username,
-        score: r.score,
-        submittedAt: r.submittedAt,
-      })),
-    });
-  } catch (error) {
-    console.error('Error broadcasting results:', error);
-  }
+async function broadcastSubmittedCount(count, results) {
+  broadcast({ type: 'submittedCount', count, results });
 }
 
-app.get('/quizzes', async (req, res) => {
-  try {
-    const email = req.query.email;
-    const query = email ? { createdBy: email } : { isAssigned: true };
-    const quizzes = await Quiz.find(query, 'quizId quizName isAssigned');
-    res.json(quizzes);
-  } catch (error) {
-    console.error('Error fetching quizzes:', error);
-    res.status(500).json({ message: 'Error fetching quizzes' });
-  }
-});
+// Hàm tiện ích
+async function getQuizById(quizId) {
+  const quizzes = JSON.parse(await fs.readFile(QUIZZES_FILE));
+  return quizzes.find(q => q._id === quizId);
+}
 
-app.post('/select-quiz', async (req, res) => {
-  try {
-    const { quizId } = req.body;
-    if (!quizId) {
-      return res.status(400).json({ message: 'Quiz ID is required' });
-    }
-    const quiz = await Quiz.findOne({ quizId });
-    if (!quiz) {
-      return res.status(404).json({ message: 'Quiz not found' });
-    }
-    currentQuizId = quizId;
-    currentQuizName = quiz.quizName;
-    timeLimit = quiz.timeLimit || 7200;
-    broadcast({
-      type: 'quizStatus',
-      quizId: currentQuizId,
-      quizName: currentQuizName,
-    });
-    res.json({ message: 'Quiz selected', quizName: quiz.quizName, timeLimit });
-  } catch (error) {
-    console.error('Error selecting quiz:', error);
-    res.status(500).json({ message: 'Error selecting quiz' });
-  }
-});
+async function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
 
-app.post('/assign-quiz', async (req, res) => {
-  try {
-    const { quizId, timeLimit: newTimeLimit } = req.body;
-    if (!quizId) {
-      return res.status(400).json({ message: 'Quiz ID is required' });
-    }
-    const quiz = await Quiz.findOne({ quizId });
-    if (!quiz) {
-      return res.status(404).json({ message: 'Quiz not found' });
-    }
-    quiz.isAssigned = true;
-    quiz.timeLimit = newTimeLimit || 7200;
-    await quiz.save();
-    currentQuizId = quizId;
-    currentQuizName = quiz.quizName;
-    timeLimit = quiz.timeLimit;
-    broadcast({
-      type: 'quizStatus',
-      quizId: currentQuizId,
-      quizName: currentQuizName,
-    });
-    res.json({ message: 'Quiz assigned successfully' });
-  } catch (error) {
-    console.error('Error assigning quiz:', error);
-    res.status(500).json({ message: 'Error assigning quiz' });
-  }
-});
-
+// Endpoint lưu đề thi
 app.post('/save-quiz', upload.fields([
   { name: 'audio-part1', maxCount: 1 },
   { name: 'audio-part2', maxCount: 1 },
   { name: 'audio-part3', maxCount: 1 },
   { name: 'audio-part4', maxCount: 1 },
-  { name: 'images-part1', maxCount: 100 },
-  { name: 'images-part2', maxCount: 100 },
-  { name: 'images-part3', maxCount: 100 },
-  { name: 'images-part4', maxCount: 100 },
-  { name: 'images-part5', maxCount: 100 },
-  { name: 'images-part6', maxCount: 100 },
-  { name: 'images-part7', maxCount: 100 },
+  { name: 'images-part1' },
+  { name: 'images-part2' },
+  { name: 'images-part3' },
+  { name: 'images-part4' },
+  { name: 'images-part5' },
+  { name: 'images-part6' },
+  { name: 'images-part7' },
 ]), async (req, res) => {
   try {
+    console.log('Nhận yêu cầu lưu đề thi...');
     const { quizName, answerKey, createdBy } = req.body;
-    if (!quizName || !answerKey || !createdBy) {
-      return res.status(400).json({ message: 'Missing required fields' });
+    const files = req.files;
+
+    // Kiểm tra dữ liệu đầu vào
+    if (!quizName) {
+      console.error('Thiếu tên đề thi');
+      return res.status(400).json({ message: 'Vui lòng nhập tên đề thi!' });
+    }
+    if (!answerKey) {
+      console.error('Thiếu đáp án');
+      return res.status(400).json({ message: 'Vui lòng cung cấp đáp án!' });
+    }
+    if (!createdBy) {
+      console.error('Thiếu thông tin người tạo');
+      return res.status(400).json({ message: 'Vui lòng cung cấp thông tin người tạo!' });
     }
 
-    const audioFiles = ['audio-part1', 'audio-part2', 'audio-part3', 'audio-part4'].map(
-      key => req.files[key] ? req.files[key][0].filename : null
-    );
-
-    const images = {};
-    for (let i = 1; i <= 7; i++) {
-      const partKey = `images-part${i}`;
-      images[`part${i}`] = req.files[partKey] ? req.files[partKey].map(f => f.filename) : [];
-    }
-
-    const quiz = new Quiz({
-      quizId: uuidv4(),
-      quizName,
-      createdBy,
-      audio: audioFiles,
-      images,
-      answerKey: JSON.parse(answerKey),
-      isAssigned: false,
-    });
-
-    await quiz.save();
-    res.json({ message: 'Quiz saved successfully' });
-  } catch (error) {
-    console.error('Error saving quiz:', error);
-    res.status(500).json({ message: 'Error saving quiz' });
-  }
-});
-
-app.get('/quiz-audio', async (req, res) => {
-  try {
-    if (!currentQuizId) {
-      return res.status(400).json({ message: 'No quiz selected' });
-    }
-    const part = req.query.part;
-    if (!part || !['part1', 'part2', 'part3', 'part4'].includes(part)) {
-      return res.status(400).json({ message: 'Invalid part' });
-    }
-    const quiz = await Quiz.findOne({ quizId: currentQuizId });
-    if (!quiz) {
-      return res.status(404).json({ message: 'Quiz not found' });
-    }
-    const partIndex = parseInt(part.replace('part', '')) - 1;
-    const audioFile = quiz.audio[partIndex];
-    if (!audioFile) {
-      return res.status(404).json({ message: `No audio for ${part}` });
-    }
-    const audioPath = path.join(__dirname, 'uploads', audioFile);
-    res.json({ audio: `/uploads/${audioFile}` });
-  } catch (error) {
-    console.error('Error fetching audio:', error);
-    res.status(500).json({ message: 'Error fetching audio' });
-  }
-});
-
-app.get('/images', async (req, res) => {
-  try {
-    if (!currentQuizId) {
-      return res.status(400).json({ message: 'No quiz selected' });
-    }
-    const part = req.query.part;
-    if (!part || isNaN(part) || part < 1 || part > 7) {
-      return res.status(400).json({ message: 'Invalid part' });
-    }
-    const quiz = await Quiz.findOne({ quizId: currentQuizId });
-    if (!quiz) {
-      return res.status(404).json({ message: 'Quiz not found' });
-    }
-    const images = quiz.images.get(`part${part}`) || [];
-    res.json(images.map(filename => `/uploads/${filename}`));
-  } catch (error) {
-    console.error('Error fetching images:', error);
-    res.status(500).json({ message: 'Error fetching images' });
-  }
-});
-
-app.post('/submit', async (req, res) => {
-  try {
-    const { username, answers } = req.body;
-    if (!username || !answers || !currentQuizId) {
-      return res.status(400).json({ message: 'Missing required fields or no quiz selected' });
-    }
-
-    const quiz = await Quiz.findOne({ quizId: currentQuizId });
-    if (!quiz) {
-      return res.status(404).json({ message: 'Quiz not found' });
-    }
-
-    let score = 0;
-    for (let key in answers) {
-      if (quiz.answerKey.get(key) === answers[key]) {
-        score++;
+    // Kiểm tra file audio
+    const audioFields = ['audio-part1', 'audio-part2', 'audio-part3', 'audio-part4'];
+    for (let field of audioFields) {
+      if (!files[field] || files[field].length === 0) {
+        console.error(`Thiếu file audio cho ${field}`);
+        return res.status(400).json({ message: `Vui lòng tải file nghe cho ${field.replace('audio-', '')}!` });
       }
     }
 
-    const result = new Result({
-      quizId: currentQuizId,
-      username,
-      answers,
-      score,
-      submittedAt: new Date(),
+    // Kiểm tra file ảnh
+    const imageFields = ['images-part1', 'images-part2', 'images-part3', 'images-part4', 'images-part5', 'images-part6', 'images-part7'];
+    for (let field of imageFields) {
+      if (!files[field] || files[field].length === 0) {
+        console.error(`Thiếu file ảnh cho ${field}`);
+        return res.status(400).json({ message: `Vui lòng tải ít nhất một ảnh cho ${field.replace('images-', '')}!` });
+      }
+    }
+
+    // Kiểm tra định dạng đáp án
+    let parsedAnswerKey;
+    try {
+      parsedAnswerKey = JSON.parse(answerKey);
+    } catch (error) {
+      console.error('Đáp án không đúng định dạng JSON:', error);
+      return res.status(400).json({ message: 'Đáp án phải là định dạng JSON hợp lệ!' });
+    }
+
+    const expectedQuestions = 200; // Tổng số câu hỏi (6 + 25 + 39 + 30 + 30 + 16 + 54)
+    const questionKeys = Object.keys(parsedAnswerKey);
+    if (questionKeys.length !== expectedQuestions) {
+      console.error(`Số lượng đáp án không đúng: ${questionKeys.length}, cần: ${expectedQuestions}`);
+      return res.status(400).json({ message: `Đáp án phải có đúng ${expectedQuestions} câu hỏi!` });
+    }
+
+    for (let i = 1; i <= expectedQuestions; i++) {
+      if (!parsedAnswerKey[`q${i}`]) {
+        console.error(`Thiếu đáp án cho câu q${i}`);
+        return res.status(400).json({ message: `Thiếu đáp án cho câu q${i}!` });
+      }
+      if (!['A', 'B', 'C', 'D'].includes(parsedAnswerKey[`q${i}`])) {
+        console.error(`Đáp án không hợp lệ cho câu q${i}: ${parsedAnswerKey[`q${i}`]}`);
+        return res.status(400).json({ message: `Đáp án cho câu q${i} phải là A, B, C hoặc D!` });
+      }
+    }
+
+    // Chuẩn bị dữ liệu để lưu
+    const audioFiles = audioFields.map((field, index) => ({
+      part: index + 1,
+      path: files[field][0].path,
+    }));
+
+    const imageFiles = [];
+    imageFields.forEach((field, index) => {
+      files[field].forEach(file => {
+        imageFiles.push({
+          part: index + 1,
+          path: file.path,
+        });
+      });
     });
 
-    await result.save();
-    broadcastResults();
+    // Lưu đề thi vào file JSON
+    const quizzes = JSON.parse(await fs.readFile(QUIZZES_FILE));
+    const newQuiz = {
+      _id: await generateId(),
+      quizName,
+      answerKey: parsedAnswerKey,
+      createdBy,
+      audioFiles,
+      imageFiles,
+      createdAt: new Date().toISOString(),
+    };
+    quizzes.push(newQuiz);
+    await fs.writeFile(QUIZZES_FILE, JSON.stringify(quizzes));
+    console.log(`Đã lưu đề thi: ${quizName}`);
+    res.status(200).json({ message: 'Lưu đề thi thành công!' });
+  } catch (error) {
+    console.error('Lỗi khi lưu đề thi:', error);
+    res.status(500).json({ message: `Lỗi server khi lưu đề thi: ${error.message}` });
+  }
+});
+
+// Endpoint tải danh sách đề thi
+app.get('/quizzes', async (req, res) => {
+  try {
+    const email = req.query.email;
+    const quizzes = JSON.parse(await fs.readFile(QUIZZES_FILE));
+    const status = JSON.parse(await fs.readFile(STATUS_FILE));
+    const filteredQuizzes = email ? quizzes.filter(q => q.createdBy === email) : quizzes;
+    res.json(filteredQuizzes.map(quiz => ({
+      quizId: quiz._id,
+      quizName: quiz.quizName,
+      createdBy: quiz.createdBy,
+      isAssigned: status.quizId === quiz._id && status.isAssigned || false,
+    })));
+  } catch (error) {
+    console.error('Lỗi khi tải danh sách đề thi:', error);
+    res.status(500).json({ message: 'Lỗi server khi tải danh sách đề thi' });
+  }
+});
+
+// Endpoint tải file audio
+app.get('/quiz-audio', async (req, res) => {
+  try {
+    const { part } = req.query;
+    const status = JSON.parse(await fs.readFile(STATUS_FILE));
+    if (!status.quizId) {
+      return res.status(404).json({ message: 'Chưa có đề thi nào được chọn' });
+    }
+    const quizzes = JSON.parse(await fs.readFile(QUIZZES_FILE));
+    const quiz = quizzes.find(q => q._id === status.quizId);
+    if (!quiz) {
+      return res.status(404).json({ message: 'Không tìm thấy đề thi' });
+    }
+    const audio = quiz.audioFiles.find(a => a.part === parseInt(part.replace('part', '')));
+    if (!audio) {
+      return res.status(404).json({ message: `Không tìm thấy file audio cho ${part}` });
+    }
+    res.json({ audio: `/uploads/audio/${path.basename(audio.path)}` });
+  } catch (error) {
+    console.error('Lỗi khi tải audio:', error);
+    res.status(500).json({ message: 'Lỗi server khi tải file audio' });
+  }
+});
+
+// Endpoint tải danh sách ảnh
+app.get('/images', async (req, res) => {
+  try {
+    const { part } = req.query;
+    const status = JSON.parse(await fs.readFile(STATUS_FILE));
+    if (!status.quizId) {
+      return res.status(404).json({ message: 'Chưa có đề thi nào được chọn' });
+    }
+    const quizzes = JSON.parse(await fs.readFile(QUIZZES_FILE));
+    const quiz = quizzes.find(q => q._id === status.quizId);
+    if (!quiz) {
+      return res.status(404).json({ message: 'Không tìm thấy đề thi' });
+    }
+    const images = quiz.imageFiles
+      .filter(img => img.part === parseInt(part))
+      .map(img => `/uploads/images/${path.basename(img.path)}`);
+    res.json(images);
+  } catch (error) {
+    console.error('Lỗi khi tải ảnh:', error);
+    res.status(500).json({ message: 'Lỗi server khi tải ảnh' });
+  }
+});
+
+// Endpoint chọn đề thi
+app.post('/select-quiz', async (req, res) => {
+  try {
+    const { quizId } = req.body;
+    if (!quizId) {
+      return res.status(400).json({ message: 'Vui lòng cung cấp quizId' });
+    }
+    const quizzes = JSON.parse(await fs.readFile(QUIZZES_FILE));
+    const quiz = quizzes.find(q => q._id === quizId);
+    if (!quiz) {
+      return res.status(404).json({ message: 'Không tìm thấy đề thi' });
+    }
+    const status = {
+      quizId,
+      quizName: quiz.quizName,
+      isAssigned: false,
+      participants: [],
+      submitted: [],
+    };
+    await fs.writeFile(STATUS_FILE, JSON.stringify(status));
+    broadcast({
+      type: 'quizStatus',
+      quizId,
+      quizName: quiz.quizName,
+    });
+    res.json({ message: 'Đã chọn đề thi', quizName: quiz.quizName, timeLimit: status.timeLimit });
+  } catch (error) {
+    console.error('Lỗi khi chọn đề thi:', error);
+    res.status(500).json({ message: 'Lỗi server khi chọn đề thi' });
+  }
+});
+
+// Endpoint giao bài
+app.post('/assign-quiz', async (req, res) => {
+  try {
+    const { quizId, timeLimit } = req.body;
+    if (!quizId || !timeLimit) {
+      return res.status(400).json({ message: 'Vui lòng cung cấp quizId và timeLimit' });
+    }
+    const quizzes = JSON.parse(await fs.readFile(QUIZZES_FILE));
+    const quiz = quizzes.find(q => q._id === quizId);
+    if (!quiz) {
+      return res.status(404).json({ message: 'Không tìm thấy đề thi' });
+    }
+    const status = {
+      quizId,
+      quizName: quiz.quizName,
+      isAssigned: true,
+      timeLimit,
+      participants: [],
+      submitted: [],
+    };
+    await fs.writeFile(STATUS_FILE, JSON.stringify(status));
+    broadcast({
+      type: 'quizStatus',
+      quizId,
+      quizName: quiz.quizName,
+      isAssigned: true,
+    });
+    res.json({ message: 'Đã giao đề thi' });
+  } catch (error) {
+    console.error('Lỗi khi giao đề thi:', error);
+    res.status(500).json({ message: 'Lỗi server khi giao đề thi' });
+  }
+});
+
+// Endpoint nộp bài
+app.post('/submit', async (req, res) => {
+  try {
+    const { username, answers } = req.body;
+    if (!username || !answers) {
+      return res.status(400).json({ message: 'Vui lòng cung cấp username và answers' });
+    }
+    const status = JSON.parse(await fs.readFile(STATUS_FILE));
+    if (!status.quizId) {
+      return res.status(404).json({ message: 'Chưa có đề thi nào được chọn' });
+    }
+    const quizzes = JSON.parse(await fs.readFile(QUIZZES_FILE));
+    const quiz = quizzes.find(q => q._id === status.quizId);
+    if (!quiz) {
+      return res.status(404).json({ message: 'Không tìm thấy đề thi' });
+    }
+
+    let score = 0;
+    Object.keys(quiz.answerKey).forEach(key => {
+      if (answers[key] && answers[key] === quiz.answerKey[key]) {
+        score++;
+      }
+    });
+
+    const results = JSON.parse(await fs.readFile(RESULTS_FILE));
+    const result = {
+      _id: await generateId(),
+      quizId: quiz._id,
+      studentName: username,
+      answers,
+      score,
+      time: status.timeLimit,
+      submittedAt: new Date().toISOString(),
+    };
+    results.push(result);
+    await fs.writeFile(RESULTS_FILE, JSON.stringify(results));
+
+    status.submitted.push({
+      username,
+      score,
+      submittedAt: new Date().toISOString(),
+    });
+    await fs.writeFile(STATUS_FILE, JSON.stringify(status));
+
+    broadcastSubmittedCount(status.submitted.length, status.submitted);
     res.json({ score });
   } catch (error) {
-    console.error('Error submitting quiz:', error);
-    res.status(500).json({ message: 'Error submitting quiz' });
+    console.error('Lỗi khi nộp bài:', error);
+    res.status(500).json({ message: 'Lỗi server khi nộp bài' });
   }
 });
 
+// Endpoint tải lịch sử
 app.get('/history', async (req, res) => {
   try {
-    const results = await Result.find().sort({ submittedAt: -1 });
-    res.json(results);
+    const results = JSON.parse(await fs.readFile(RESULTS_FILE));
+    res.json(results.map(r => ({
+      _id: r._id,
+      username: r.studentName,
+      score: r.score,
+      submittedAt: r.submittedAt,
+    })));
   } catch (error) {
-    console.error('Error fetching history:', error);
-    res.status(500).json({ message: 'Error fetching history' });
+    console.error('Lỗi khi tải lịch sử:', error);
+    res.status(500).json({ message: 'Lỗi server khi tải lịch sử' });
   }
 });
 
+// Endpoint xóa kết quả
 app.post('/delete-results', async (req, res) => {
   try {
     const { ids } = req.body;
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ message: 'No result IDs provided' });
+      return res.status(400).json({ message: 'Vui lòng cung cấp danh sách ID hợp lệ' });
     }
-    await Result.deleteMany({ _id: { $in: ids } });
-    res.json({ message: 'Results deleted successfully' });
+    let results = JSON.parse(await fs.readFile(RESULTS_FILE));
+    results = results.filter(r => !ids.includes(r._id));
+    await fs.writeFile(RESULTS_FILE, JSON.stringify(results));
+    res.json({ message: 'Đã xóa các kết quả được chọn' });
   } catch (error) {
-    console.error('Error deleting results:', error);
-    res.status(500).json({ message: 'Error deleting results' });
+    console.error('Lỗi khi xóa kết quả:', error);
+    res.status(500).json({ message: 'Lỗi server khi xóa kết quả' });
   }
 });
 
+// Endpoint xóa đề thi
 app.delete('/delete-quiz/:quizId', async (req, res) => {
   try {
     const { quizId } = req.params;
-    const quiz = await Quiz.findOne({ quizId });
+    let quizzes = JSON.parse(await fs.readFile(QUIZZES_FILE));
+    const quiz = quizzes.find(q => q._id === quizId);
     if (!quiz) {
-      return res.status(404).json({ message: 'Quiz not found' });
+      return res.status(404).json({ message: 'Không tìm thấy đề thi' });
     }
-
-    for (let audioFile of quiz.audio) {
-      if (audioFile) {
-        await fs.unlink(path.join(__dirname, 'uploads', audioFile)).catch(err => console.warn('Error deleting audio file:', err));
+    // Xóa các file liên quan
+    for (let audio of quiz.audioFiles) {
+      try {
+        await fs.unlink(audio.path);
+      } catch (err) {
+        console.warn(`Không thể xóa file audio ${audio.path}: ${err.message}`);
       }
     }
-
-    for (let partImages of quiz.images.values()) {
-      for (let imageFile of partImages) {
-        await fs.unlink(path.join(__dirname, 'uploads', imageFile)).catch(err => console.warn('Error deleting image file:', err));
+    for (let image of quiz.imageFiles) {
+      try {
+        await fs.unlink(image.path);
+      } catch (err) {
+        console.warn(`Không thể xóa file ảnh ${image.path}: ${err.message}`);
       }
     }
-
-    await Quiz.deleteOne({ quizId });
-    await Result.deleteMany({ quizId });
-
-    if (currentQuizId === quizId) {
-      currentQuizId = null;
-      currentQuizName = null;
-      timeLimit = 7200;
-      broadcast({
-        type: 'quizStatus',
-        quizId: null,
-        quizName: null,
-      });
+    quizzes = quizzes.filter(q => q._id !== quizId);
+    await fs.writeFile(QUIZZES_FILE, JSON.stringify(quizzes));
+    
+    // Cập nhật status nếu cần
+    const status = JSON.parse(await fs.readFile(STATUS_FILE));
+    if (status.quizId === quizId) {
+      await fs.writeFile(STATUS_FILE, JSON.stringify({}));
+      broadcast({ type: 'quizStatus', quizId: null, quizName: null });
     }
 
-    res.json({ message: 'Quiz deleted successfully' });
+    res.json({ message: 'Đã xóa đề thi' });
   } catch (error) {
-    console.error('Error deleting quiz:', error);
-    res.status(500).json({ message: 'Error deleting quiz' });
+    console.error('Lỗi khi xóa đề thi:', error);
+    res.status(500).json({ message: 'Lỗi server khi xóa đề thi' });
   }
 });
 
+// Endpoint xóa toàn bộ dữ liệu
 app.delete('/clear-database', async (req, res) => {
   try {
-    const quizzes = await Quiz.find();
+    const quizzes = JSON.parse(await fs.readFile(QUIZZES_FILE));
     for (let quiz of quizzes) {
-      for (let audioFile of quiz.audio) {
-        if (audioFile) {
-          await fs.unlink(path.join(__dirname, 'uploads', audioFile)).catch(err => console.warn('Error deleting audio file:', err));
+      for (let audio of quiz.audioFiles) {
+        try {
+          await fs.unlink(audio.path);
+        } catch (err) {
+          console.warn(`Không thể xóa file audio ${audio.path}: ${err.message}`);
         }
       }
-      for (let partImages of quiz.images.values()) {
-        for (let imageFile of partImages) {
-          await fs.unlink(path.join(__dirname, 'uploads', imageFile)).catch(err => console.warn('Error deleting image file:', err));
+      for (let image of quiz.imageFiles) {
+        try {
+          await fs.unlink(image.path);
+        } catch (err) {
+          console.warn(`Không thể xóa file ảnh ${image.path}: ${err.message}`);
         }
       }
     }
-
-    await Quiz.deleteMany({});
-    await Result.deleteMany({});
-    currentQuizId = null;
-    currentQuizName = null;
-    timeLimit = 7200;
-    broadcast({
-      type: 'quizStatus',
-      quizId: null,
-      quizName: null,
-    });
-    res.json({ message: 'Database cleared successfully' });
+    await fs.writeFile(QUIZZES_FILE, JSON.stringify([]));
+    await fs.writeFile(STATUS_FILE, JSON.stringify({}));
+    await fs.writeFile(RESULTS_FILE, JSON.stringify([]));
+    broadcast({ type: 'quizStatus', quizId: null, quizName: null });
+    res.json({ message: 'Đã xóa toàn bộ dữ liệu' });
   } catch (error) {
-    console.error('Error clearing database:', error);
-    res.status(500).json({ message: 'Error clearing database' });
+    console.error('Lỗi khi xóa dữ liệu:', error);
+    res.status(500).json({ message: 'Lỗi server khi xóa dữ liệu' });
   }
 });
 
-app.get('/quiz-status', async (req, res) => {
-  try {
-    res.json({
-      quizId: currentQuizId,
-      quizName: currentQuizName,
-      timeLimit,
-    });
-  } catch (error) {
-    console.error('Error fetching quiz status:', error);
-    res.status(500).json({ message: 'Error fetching quiz status' });
-  }
-});
-
+// Endpoint tải kết quả kiểm tra trực tiếp
 app.get('/direct-results', async (req, res) => {
   try {
-    const results = await Result.find({ quizId: currentQuizId }).sort({ submittedAt: -1 });
-    res.json(results);
+    const status = JSON.parse(await fs.readFile(STATUS_FILE));
+    if (!status.quizId) {
+      return res.status(404).json({ message: 'Chưa có đề thi nào được chọn' });
+    }
+    const results = JSON.parse(await fs.readFile(RESULTS_FILE));
+    const directResults = results.filter(r => r.quizId === status.quizId);
+    res.json(directResults.map(r => ({
+      username: r.studentName,
+      score: r.score,
+      submittedAt: r.submittedAt,
+    })));
   } catch (error) {
-    console.error('Error fetching direct results:', error);
-    res.status(500).json({ message: 'Error fetching direct results' });
+    console.error('Lỗi khi tải kết quả trực tiếp:', error);
+    res.status(500).json({ message: 'Lỗi server khi tải kết quả trực tiếp' });
   }
 });
 
-app.post('/upload-quizzes', upload.single('quizzes'), async (req, res) => {
-  try {
-    const file = req.file;
-    if (!file) {
-      return res.status(400).json({ message: 'No file uploaded' });
-    }
-    const data = await fs.readFile(path.join(__dirname, 'uploads', file.filename));
-    const quizzes = JSON.parse(data);
-    for (let quizData of quizzes) {
-      const quiz = new Quiz({
-        quizId: uuidv4(),
-        quizName: quizData.quizName,
-        createdBy: quizData.createdBy || 'unknown',
-        audio: quizData.audio || [],
-        images: quizData.images || {},
-        answerKey: quizData.answerKey || {},
-        isAssigned: false,
-      });
-      await quiz.save();
-    }
-    await fs.unlink(path.join(__dirname, 'Uploads', file.filename));
-    res.json({ message: 'Quizzes uploaded successfully' });
-  } catch (error) {
-    console.error('Error uploading quizzes:', error);
-    res.status(500).json({ message: 'Error uploading quizzes' });
-  }
-});
-
-app.post('/upload-quizzes-zip', upload.single('quizzes'), async (req, res) => {
-  try {
-    const file = req.file;
-    if (!file) {
-      return res.status(400).json({ message: 'No file uploaded' });
-    }
-    const zip = new AdmZip(path.join(__dirname, 'uploads', file.filename));
-    const zipEntries = zip.getEntries();
-    const quizzes = [];
-
-    for (let entry of zipEntries) {
-      if (entry.entryName.endsWith('.json')) {
-        const quizData = JSON.parse(zip.readAsText(entry));
-        const quiz = {
-          quizId: uuidv4(),
-          quizName: quizData.quizName,
-          createdBy: quizData.createdBy || 'unknown',
-          audio: [],
-          images: {},
-          answerKey: quizData.answerKey || {},
-          isAssigned: false,
-        };
-
-        for (let i = 1; i <= 4; i++) {
-          const audioEntry = zipEntries.find(e => e.entryName === `audio-part${i}.mp3`);
-          if (audioEntry) {
-            const audioFileName = `${uuidv4()}-part${i}.mp3`;
-            await fs.writeFile(path.join(__dirname, 'uploads', audioFileName), audioEntry.getData());
-            quiz.audio[i - 1] = audioFileName;
-          }
-        }
-
-        for (let i = 1; i <= 7; i++) {
-          quiz.images[`part${i}`] = [];
-          const imageEntries = zipEntries.filter(e => e.entryName.startsWith(`images-part${i}/`) && /\.(jpg|jpeg|png|gif)$/i.test(e.entryName));
-          for (let imgEntry of imageEntries) {
-            const imageFileName = `${uuidv4()}-${path.basename(imgEntry.entryName)}`;
-            await fs.writeFile(path.join(__dirname, 'Uploads', imageFileName), imgEntry.getData());
-            quiz.images[`part${i}`].push(imageFileName);
-          }
-        }
-
-        quizzes.push(quiz);
-      }
-    }
-
-    for (let quiz of quizzes) {
-      const newQuiz = new Quiz(quiz);
-      await newQuiz.save();
-    }
-
-    await fs.unlink(path.join(__dirname, 'Uploads', file.filename));
-    res.json({ message: 'Quizzes uploaded successfully from ZIP' });
-  } catch (error) {
-    console.error('Error uploading quizzes from ZIP:', error);
-    res.status(500).json({ message: 'Error uploading quizzes from ZIP' });
-  }
-});
-
+// Endpoint tải file ZIP của đề thi
 app.get('/download-quiz-zip/:quizId', async (req, res) => {
   try {
     const { quizId } = req.params;
-    const quiz = await Quiz.findOne({ quizId });
+    const quizzes = JSON.parse(await fs.readFile(QUIZZES_FILE));
+    const quiz = quizzes.find(q => q._id === quizId);
     if (!quiz) {
-      return res.status(404).json({ message: 'Quiz not found' });
+      return res.status(404).json({ message: 'Không tìm thấy đề thi' });
     }
 
-    const zip = new AdmZip();
-    zip.addFile('quiz.json', Buffer.from(JSON.stringify({
+    const zip = new JSZip();
+    for (let audio of quiz.audioFiles) {
+      const content = await fs.readFile(audio.path);
+      zip.file(`audio/part${audio.part}${path.extname(audio.path)}`, content);
+    }
+    for (let image of quiz.imageFiles) {
+      const content = await fs.readFile(image.path);
+      zip.file(`images/part${image.part}/${path.basename(image.path)}`, content);
+    }
+    zip.file('answerKey.json', JSON.stringify(quiz.answerKey));
+    zip.file('quizInfo.json', JSON.stringify({
       quizName: quiz.quizName,
       createdBy: quiz.createdBy,
-      answerKey: quiz.answerKey,
-    })));
+      createdAt: quiz.createdAt,
+    }));
 
-    for (let i = 0; i < quiz.audio.length; i++) {
-      if (quiz.audio[i]) {
-        const audioPath = path.join(__dirname, 'uploads', quiz.audio[i]);
-        try {
-          const audioData = await fs.readFile(audioPath);
-          zip.addFile(`audio-part${i + 1}.mp3`, audioData);
-        } catch (err) {
-          console.warn(`Error reading audio file ${quiz.audio[i]}:`, err);
-        }
-      }
-    }
-
-    for (let i = 1; i <= 7; i++) {
-      const partImages = quiz.images.get(`part${i}`) || [];
-      for (let imageFile of partImages) {
-        const imagePath = path.join(__dirname, 'uploads', imageFile);
-        try {
-          const imageData = await fs.readFile(imagePath);
-          zip.addFile(`images-part${i}/${imageFile}`, imageData);
-        } catch (err) {
-          console.warn(`Error reading image file ${imageFile}:`, err);
-        }
-      }
-    }
-
-    const zipBuffer = zip.toBuffer();
+    const content = await zip.generateAsync({ type: 'nodebuffer' });
     res.set({
       'Content-Type': 'application/zip',
       'Content-Disposition': `attachment; filename=quiz_${quizId}.zip`,
-      'Content-Length': zipBuffer.length,
     });
-    res.send(zipBuffer);
+    res.send(content);
   } catch (error) {
-    console.error('Error downloading quiz ZIP:', error);
-    res.status(500).json({ message: 'Error downloading quiz ZIP' });
+    console.error('Lỗi khi tải file ZIP:', error);
+    res.status(500).json({ message: 'Lỗi server khi tải file ZIP' });
   }
 });
 
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Endpoint tải lên file JSON
+app.post('/upload-quizzes', upload.single('quizzes'), async (req, res) => {
+  try {
+    const data = JSON.parse(await fs.readFile(req.file.path));
+    const quizzes = JSON.parse(await fs.readFile(QUIZZES_FILE));
+    for (let quiz of data) {
+      quiz._id = await generateId();
+      quiz.createdAt = new Date().toISOString();
+      quizzes.push(quiz);
+    }
+    await fs.writeFile(QUIZZES_FILE, JSON.stringify(quizzes));
+    await fs.unlink(req.file.path);
+    res.json({ message: 'Tải lên đề thi thành công' });
+  } catch (error) {
+    console.error('Lỗi khi tải lên file JSON:', error);
+    res.status(500).json({ message: 'Lỗi server khi tải lên file JSON' });
+  }
+});
+
+// Endpoint tải lên file ZIP
+app.post('/upload-quizzes-zip', upload.single('quizzes'), async (req, res) => {
+  try {
+    const zip = new AdmZip(req.file.path);
+    const zipEntries = zip.getEntries();
+    let quizInfo, answerKey;
+    const audioFiles = [];
+    const imageFiles = [];
+
+    for (let entry of zipEntries) {
+      if (entry.entryName === 'quizInfo.json') {
+        quizInfo = JSON.parse(zip.readAsText(entry));
+      } else if (entry.entryName === 'answerKey.json') {
+        answerKey = JSON.parse(zip.readAsText(entry));
+      } else if (entry.entryName.startsWith('audio/')) {
+        const part = parseInt(entry.entryName.match(/part(\d+)/)?.[1]);
+        if (part) {
+          const fileName = `audio-part${part}-${Date.now()}${path.extname(entry.entryName)}`;
+          const filePath = path.join(__dirname, 'Uploads/audio', fileName);
+          await fs.writeFile(filePath, entry.getData());
+          audioFiles.push({ part, path: filePath });
+        }
+      } else if (entry.entryName.startsWith('images/')) {
+        const part = parseInt(entry.entryName.match(/part(\d+)/)?.[1]);
+        if (part) {
+          const fileName = `images-part${part}-${Date.now()}${path.extname(entry.entryName)}`;
+          const filePath = path.join(__dirname, 'Uploads/images', fileName);
+          await fs.writeFile(filePath, entry.getData());
+          imageFiles.push({ part, path: filePath });
+        }
+      }
+    }
+
+    if (!quizInfo || !answerKey) {
+      return res.status(400).json({ message: 'File ZIP thiếu quizInfo.json hoặc answerKey.json' });
+    }
+    if (audioFiles.length < 4) {
+      return res.status(400).json({ message: 'File ZIP thiếu file audio cho các phần' });
+    }
+    if (imageFiles.length < 7) {
+      return res.status(400).json({ message: 'File ZIP thiếu file ảnh cho các phần' });
+    }
+
+    const quizzes = JSON.parse(await fs.readFile(QUIZZES_FILE));
+    const newQuiz = {
+      _id: await generateId(),
+      quizName: quizInfo.quizName,
+      answerKey,
+      createdBy: quizInfo.createdBy,
+      audioFiles,
+      imageFiles,
+      createdAt: new Date().toISOString(),
+    };
+    quizzes.push(newQuiz);
+    await fs.writeFile(QUIZZES_FILE, JSON.stringify(quizzes));
+    await fs.unlink(req.file.path);
+    res.json({ message: 'Tải lên đề thi từ file ZIP thành công' });
+  } catch (error) {
+    console.error('Lỗi khi tải lên file ZIP:', error);
+    res.status(500).json({ message: 'Lỗi server khi tải lên file ZIP' });
+  }
+});
+
+// Endpoint đăng xuất
+app.post('/logout', async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) {
+      return res.status(400).json({ message: 'Vui lòng cung cấp username' });
+    }
+    const status = JSON.parse(await fs.readFile(STATUS_FILE));
+    if (status.participants) {
+      status.participants = status.participants.filter(p => p !== username);
+      await fs.writeFile(STATUS_FILE, JSON.stringify(status));
+      broadcastParticipantCount(status.participants.length);
+    }
+    res.json({ message: 'Đăng xuất thành công' });
+  } catch (error) {
+    console.error('Lỗi khi đăng xuất:', error);
+    res.status(500).json({ message: 'Lỗi server khi đăng xuất' });
+  }
+});
+
+// Endpoint trạng thái đề thi
+app.get('/quiz-status', async (req, res) => {
+  try {
+    const status = JSON.parse(await fs.readFile(STATUS_FILE));
+    res.json({
+      quizId: status.quizId,
+      quizName: status.quizName,
+      isAssigned: status.isAssigned || false,
+    });
+  } catch (error) {
+    console.error('Lỗi khi lấy trạng thái đề thi:', error);
+    res.status(500).json({ message: 'Lỗi server khi lấy trạng thái đề thi' });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Server running at http://localhost:${port}`);
+});
