@@ -7,7 +7,7 @@ const archiver = require('archiver');
 const unzipper = require('unzipper');
 
 const app = express();
-const port = process.env.PORT || 3000; // Sử dụng PORT từ Render
+const port = process.env.PORT || 3000;
 const wsPort = 8080;
 
 // Đường dẫn lưu trữ dữ liệu
@@ -95,10 +95,31 @@ const upload = multer({
 // Middleware
 app.use(express.json());
 app.use('/uploads', express.static(UPLOADS_DIR));
+app.use(express.static(path.join(__dirname, 'public'))); // Phục vụ file tĩnh từ thư mục public
 
 // Route cho đường dẫn gốc
 app.get('/', (req, res) => {
-  res.json({ message: 'Welcome to the Quiz API! Use /quizzes to list quizzes or /save-quiz to create a new quiz.' });
+  const indexPath = path.join(__dirname, 'public', 'index.html');
+  fs.access(indexPath)
+    .then(() => res.sendFile(indexPath))
+    .catch(() => res.json({
+      message: 'Welcome to the Quiz API!',
+      endpoints: {
+        'GET /quizzes': 'List all quizzes (filter by ?email=creator)',
+        'POST /save-quiz': 'Create a new quiz (multipart/form-data: quizName, answerKey, createdBy, audio-part1 to audio-part4, images-part1 to images-part7)',
+        'GET /download-quiz-zip/:quizId': 'Download quiz as ZIP (includes audio, images, quizInfo.json, answerKey.json)',
+        'POST /upload-quizzes-zip': 'Upload quiz from ZIP (multipart/form-data: quizzes)',
+        'POST /select-quiz': 'Select a quiz (body: { quizId })',
+        'POST /assign-quiz': 'Assign a quiz (body: { quizId, timeLimit })',
+        'POST /submit': 'Submit answers (body: { username, answers })',
+        'GET /history': 'Get submission history',
+        'GET /direct-results': 'Get results for current quiz',
+        'DELETE /delete-quiz/:quizId': 'Delete a quiz',
+        'DELETE /clear-database': 'Clear all data',
+        'POST /logout': 'Logout user (body: { username })',
+        'GET /quiz-status': 'Get current quiz status',
+      },
+    }));
 });
 
 // WebSocket Server
@@ -208,8 +229,16 @@ app.post('/save-quiz', upload.fields([
   try {
     console.log('Received /save-quiz request:', {
       body: req.body,
-      audioFiles: Object.keys(req.files).filter(key => key.startsWith('audio-part')),
-      imageFiles: Object.keys(req.files).filter(key => key.startsWith('images-part')),
+      audioFiles: Object.keys(req.files).filter(key => key.startsWith('audio-part')).map(key => ({
+        field: key,
+        path: req.files[key][0].path,
+        mimetype: req.files[key][0].mimetype,
+      })),
+      imageFiles: Object.keys(req.files).filter(key => key.startsWith('images-part')).map(key => ({
+        field: key,
+        count: req.files[key].length,
+        paths: req.files[key].map(f => f.path),
+      })),
     });
 
     const { quizName, answerKey, createdBy } = req.body;
@@ -251,7 +280,7 @@ app.post('/save-quiz', upload.fields([
     let parsedAnswerKey;
     try {
       parsedAnswerKey = JSON.parse(answerKey);
-      console.log('Parsed answerKey successfully');
+      console.log('Parsed answerKey successfully:', Object.keys(parsedAnswerKey).length, 'questions');
     } catch (error) {
       console.error('Invalid answerKey JSON:', error);
       return res.status(400).json({ message: 'Đáp án phải là định dạng JSON hợp lệ!' });
@@ -295,7 +324,7 @@ app.post('/save-quiz', upload.fields([
     let quizzes = [];
     try {
       quizzes = JSON.parse(await fs.readFile(QUIZZES_FILE));
-      console.log('Read quizzes.json successfully');
+      console.log('Read quizzes.json successfully:', quizzes.length, 'existing quizzes');
     } catch (error) {
       console.error('Error reading quizzes.json:', error);
       quizzes = [];
@@ -314,8 +343,8 @@ app.post('/save-quiz', upload.fields([
 
     try {
       await fs.writeFile(QUIZZES_FILE, JSON.stringify(quizzes, null, 2));
-      console.log(`Saved quiz: ${quizName}`);
-      res.status(200).json({ message: 'Lưu đề thi thành công!' });
+      console.log(`Saved quiz: ${quizName}, ID: ${newQuiz._id}`);
+      res.status(200).json({ message: 'Lưu đề thi thành công!', quizId: newQuiz._id });
     } catch (error) {
       console.error('Error writing to quizzes.json:', error);
       return res.status(500).json({ message: `Lỗi khi lưu file quizzes.json: ${error.message}` });
@@ -333,6 +362,7 @@ app.get('/quizzes', async (req, res) => {
     let quizzes = [];
     try {
       quizzes = JSON.parse(await fs.readFile(QUIZZES_FILE));
+      console.log('Fetched quizzes:', quizzes.length);
     } catch (error) {
       console.error('Error reading quizzes.json:', error);
     }
@@ -714,7 +744,7 @@ app.post('/upload-quizzes-zip', upload.single('quizzes'), async (req, res) => {
       } else if (file.path === 'answerKey.json') {
         answerKey = JSON.parse(await file.buffer());
       } else if (file.path.startsWith('audio/')) {
-        const part = parseInt(file.path.match(/ gatekeeper(\d+)/)?.[1]);
+        const part = parseInt(file.path.match(/part(\d+)/)?.[1]);
         if (part) {
           const fileName = `audio-part${part}-${Date.now()}${path.extname(file.path)}`;
           const filePath = path.join(UPLOADS_DIR, 'audio', fileName);
