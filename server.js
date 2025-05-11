@@ -7,12 +7,12 @@ const archiver = require('archiver');
 const unzipper = require('unzipper');
 
 const app = express();
-const port = process.env.PORT || 3000; // Sử dụng PORT từ Render hoặc mặc định 3000
+const port = process.env.PORT || 3000; // Sử dụng PORT từ Render
 const wsPort = 8080;
 
 // Đường dẫn lưu trữ dữ liệu
-const DATA_DIR = process.env.DATA_DIR || '/tmp/data'; // Sử dụng /tmp trên Render
-const UPLOADS_DIR = process.env.UPLOADS_DIR || '/tmp/Uploads'; // Thư mục tạm cho file upload
+const DATA_DIR = process.env.DATA_DIR || '/tmp/data';
+const UPLOADS_DIR = process.env.UPLOADS_DIR || '/tmp/Uploads';
 const QUIZZES_FILE = path.join(DATA_DIR, 'quizzes.json');
 const STATUS_FILE = path.join(DATA_DIR, 'status.json');
 const RESULTS_FILE = path.join(DATA_DIR, 'results.json');
@@ -95,6 +95,11 @@ const upload = multer({
 // Middleware
 app.use(express.json());
 app.use('/uploads', express.static(UPLOADS_DIR));
+
+// Route cho đường dẫn gốc
+app.get('/', (req, res) => {
+  res.json({ message: 'Welcome to the Quiz API! Use /quizzes to list quizzes or /save-quiz to create a new quiz.' });
+});
 
 // WebSocket Server
 const wss = new WebSocket.Server({ port: wsPort });
@@ -201,21 +206,26 @@ app.post('/save-quiz', upload.fields([
   { name: 'images-part7' },
 ]), async (req, res) => {
   try {
-    console.log('Nhận yêu cầu lưu đề thi:', req.body);
+    console.log('Received /save-quiz request:', {
+      body: req.body,
+      audioFiles: Object.keys(req.files).filter(key => key.startsWith('audio-part')),
+      imageFiles: Object.keys(req.files).filter(key => key.startsWith('images-part')),
+    });
+
     const { quizName, answerKey, createdBy } = req.body;
     const files = req.files;
 
     // Kiểm tra dữ liệu đầu vào
     if (!quizName) {
-      console.error('Thiếu tên đề thi');
+      console.error('Missing quizName');
       return res.status(400).json({ message: 'Vui lòng nhập tên đề thi!' });
     }
     if (!answerKey) {
-      console.error('Thiếu đáp án');
+      console.error('Missing answerKey');
       return res.status(400).json({ message: 'Vui lòng cung cấp đáp án!' });
     }
     if (!createdBy) {
-      console.error('Thiếu thông tin người tạo');
+      console.error('Missing createdBy');
       return res.status(400).json({ message: 'Vui lòng cung cấp thông tin người tạo!' });
     }
 
@@ -223,7 +233,7 @@ app.post('/save-quiz', upload.fields([
     const audioFields = ['audio-part1', 'audio-part2', 'audio-part3', 'audio-part4'];
     for (let field of audioFields) {
       if (!files[field] || files[field].length === 0) {
-        console.error(`Thiếu file audio cho ${field}`);
+        console.error(`Missing audio file for ${field}`);
         return res.status(400).json({ message: `Vui lòng tải file nghe cho ${field.replace('audio-', '')}!` });
       }
     }
@@ -232,7 +242,7 @@ app.post('/save-quiz', upload.fields([
     const imageFields = ['images-part1', 'images-part2', 'images-part3', 'images-part4', 'images-part5', 'images-part6', 'images-part7'];
     for (let field of imageFields) {
       if (!files[field] || files[field].length === 0) {
-        console.error(`Thiếu file ảnh cho ${field}`);
+        console.error(`Missing image file for ${field}`);
         return res.status(400).json({ message: `Vui lòng tải ít nhất một ảnh cho ${field.replace('images-', '')}!` });
       }
     }
@@ -241,25 +251,26 @@ app.post('/save-quiz', upload.fields([
     let parsedAnswerKey;
     try {
       parsedAnswerKey = JSON.parse(answerKey);
+      console.log('Parsed answerKey successfully');
     } catch (error) {
-      console.error('Đáp án không đúng định dạng JSON:', error);
+      console.error('Invalid answerKey JSON:', error);
       return res.status(400).json({ message: 'Đáp án phải là định dạng JSON hợp lệ!' });
     }
 
     const expectedQuestions = 200;
     const questionKeys = Object.keys(parsedAnswerKey);
     if (questionKeys.length !== expectedQuestions) {
-      console.error(`Số lượng đáp án không đúng: ${questionKeys.length}, cần: ${expectedQuestions}`);
+      console.error(`Invalid number of questions: ${questionKeys.length}, expected: ${expectedQuestions}`);
       return res.status(400).json({ message: `Đáp án phải có đúng ${expectedQuestions} câu hỏi!` });
     }
 
     for (let i = 1; i <= expectedQuestions; i++) {
       if (!parsedAnswerKey[`q${i}`]) {
-        console.error(`Thiếu đáp án cho câu q${i}`);
+        console.error(`Missing answer for question q${i}`);
         return res.status(400).json({ message: `Thiếu đáp án cho câu q${i}!` });
       }
       if (!['A', 'B', 'C', 'D'].includes(parsedAnswerKey[`q${i}`])) {
-        console.error(`Đáp án không hợp lệ cho câu q${i}: ${parsedAnswerKey[`q${i}`]}`);
+        console.error(`Invalid answer for question q${i}: ${parsedAnswerKey[`q${i}`]}`);
         return res.status(400).json({ message: `Đáp án cho câu q${i} phải là A, B, C hoặc D!` });
       }
     }
@@ -284,10 +295,12 @@ app.post('/save-quiz', upload.fields([
     let quizzes = [];
     try {
       quizzes = JSON.parse(await fs.readFile(QUIZZES_FILE));
+      console.log('Read quizzes.json successfully');
     } catch (error) {
       console.error('Error reading quizzes.json:', error);
       quizzes = [];
     }
+
     const newQuiz = {
       _id: await generateId(),
       quizName,
@@ -298,16 +311,17 @@ app.post('/save-quiz', upload.fields([
       createdAt: new Date().toISOString(),
     };
     quizzes.push(newQuiz);
+
     try {
       await fs.writeFile(QUIZZES_FILE, JSON.stringify(quizzes, null, 2));
-      console.log(`Đã lưu đề thi: ${quizName}`);
+      console.log(`Saved quiz: ${quizName}`);
       res.status(200).json({ message: 'Lưu đề thi thành công!' });
     } catch (error) {
       console.error('Error writing to quizzes.json:', error);
       return res.status(500).json({ message: `Lỗi khi lưu file quizzes.json: ${error.message}` });
     }
   } catch (error) {
-    console.error('Lỗi khi lưu đề thi:', error);
+    console.error('Error in /save-quiz:', error);
     res.status(500).json({ message: `Lỗi server khi lưu đề thi: ${error.message}` });
   }
 });
@@ -331,7 +345,7 @@ app.get('/quizzes', async (req, res) => {
       isAssigned: status.quizId === quiz._id && status.isAssigned || false,
     })));
   } catch (error) {
-    console.error('Lỗi khi tải danh sách đề thi:', error);
+    console.error('Error in /quizzes:', error);
     res.status(500).json({ message: 'Lỗi server khi tải danh sách đề thi' });
   }
 });
@@ -355,7 +369,7 @@ app.get('/quiz-audio', async (req, res) => {
     }
     res.json({ audio: `/uploads/audio/${path.basename(audio.path)}` });
   } catch (error) {
-    console.error('Lỗi khi tải audio:', error);
+    console.error('Error in /quiz-audio:', error);
     res.status(500).json({ message: 'Lỗi server khi tải file audio' });
   }
 });
@@ -378,7 +392,7 @@ app.get('/images', async (req, res) => {
       .map(img => `/uploads/images/${path.basename(img.path)}`);
     res.json(images);
   } catch (error) {
-    console.error('Lỗi khi tải ảnh:', error);
+    console.error('Error in /images:', error);
     res.status(500).json({ message: 'Lỗi server khi tải ảnh' });
   }
 });
@@ -410,7 +424,7 @@ app.post('/select-quiz', async (req, res) => {
     });
     res.json({ message: 'Đã chọn đề thi', quizName: quiz.quizName });
   } catch (error) {
-    console.error('Lỗi khi chọn đề thi:', error);
+    console.error('Error in /select-quiz:', error);
     res.status(500).json({ message: 'Lỗi server khi chọn đề thi' });
   }
 });
@@ -444,7 +458,7 @@ app.post('/assign-quiz', async (req, res) => {
     });
     res.json({ message: 'Đã giao đề thi' });
   } catch (error) {
-    console.error('Lỗi khi giao đề thi:', error);
+    console.error('Error in /assign-quiz:', error);
     res.status(500).json({ message: 'Lỗi server khi giao đề thi' });
   }
 });
@@ -496,7 +510,7 @@ app.post('/submit', async (req, res) => {
     broadcastSubmittedCount(status.submitted.length, status.submitted);
     res.json({ score });
   } catch (error) {
-    console.error('Lỗi khi nộp bài:', error);
+    console.error('Error in /submit:', error);
     res.status(500).json({ message: 'Lỗi server khi nộp bài' });
   }
 });
@@ -512,7 +526,7 @@ app.get('/history', async (req, res) => {
       submittedAt: r.submittedAt,
     })));
   } catch (error) {
-    console.error('Lỗi khi tải lịch sử:', error);
+    console.error('Error in /history:', error);
     res.status(500).json({ message: 'Lỗi server khi tải lịch sử' });
   }
 });
@@ -529,7 +543,7 @@ app.post('/delete-results', async (req, res) => {
     await fs.writeFile(RESULTS_FILE, JSON.stringify(results));
     res.json({ message: 'Đã xóa các kết quả được chọn' });
   } catch (error) {
-    console.error('Lỗi khi xóa kết quả:', error);
+    console.error('Error in /delete-results:', error);
     res.status(500).json({ message: 'Lỗi server khi xóa kết quả' });
   }
 });
@@ -568,7 +582,7 @@ app.delete('/delete-quiz/:quizId', async (req, res) => {
 
     res.json({ message: 'Đã xóa đề thi' });
   } catch (error) {
-    console.error('Lỗi khi xóa đề thi:', error);
+    console.error('Error in /delete-quiz:', error);
     res.status(500).json({ message: 'Lỗi server khi xóa đề thi' });
   }
 });
@@ -599,7 +613,7 @@ app.delete('/clear-database', async (req, res) => {
     broadcast({ type: 'quizStatus', quizId: null, quizName: null });
     res.json({ message: 'Đã xóa toàn bộ dữ liệu' });
   } catch (error) {
-    console.error('Lỗi khi xóa dữ liệu:', error);
+    console.error('Error in /clear-database:', error);
     res.status(500).json({ message: 'Lỗi server khi xóa dữ liệu' });
   }
 });
@@ -619,7 +633,7 @@ app.get('/direct-results', async (req, res) => {
       submittedAt: r.submittedAt,
     })));
   } catch (error) {
-    console.error('Lỗi khi tải kết quả trực tiếp:', error);
+    console.error('Error in /direct-results:', error);
     res.status(500).json({ message: 'Lỗi server khi tải kết quả trực tiếp' });
   }
 });
@@ -662,7 +676,7 @@ app.get('/download-quiz-zip/:quizId', async (req, res) => {
 
     archive.finalize();
   } catch (error) {
-    console.error('Lỗi khi tải file ZIP:', error);
+    console.error('Error in /download-quiz-zip:', error);
     res.status(500).json({ message: 'Lỗi server khi tải file ZIP' });
   }
 });
@@ -681,7 +695,7 @@ app.post('/upload-quizzes', upload.single('quizzes'), async (req, res) => {
     await fs.unlink(req.file.path);
     res.json({ message: 'Tải lên đề thi thành công' });
   } catch (error) {
-    console.error('Lỗi khi tải lên file JSON:', error);
+    console.error('Error in /upload-quizzes:', error);
     res.status(500).json({ message: 'Lỗi server khi tải lên file JSON' });
   }
 });
@@ -700,7 +714,7 @@ app.post('/upload-quizzes-zip', upload.single('quizzes'), async (req, res) => {
       } else if (file.path === 'answerKey.json') {
         answerKey = JSON.parse(await file.buffer());
       } else if (file.path.startsWith('audio/')) {
-        const part = parseInt(file.path.match(/part(\d+)/)?.[1]);
+        const part = parseInt(file.path.match(/ gatekeeper(\d+)/)?.[1]);
         if (part) {
           const fileName = `audio-part${part}-${Date.now()}${path.extname(file.path)}`;
           const filePath = path.join(UPLOADS_DIR, 'audio', fileName);
@@ -760,7 +774,7 @@ app.post('/upload-quizzes-zip', upload.single('quizzes'), async (req, res) => {
     await fs.unlink(req.file.path);
     res.json({ message: 'Tải lên đề thi từ file ZIP thành công' });
   } catch (error) {
-    console.error('Lỗi khi tải lên file ZIP:', error);
+    console.error('Error in /upload-quizzes-zip:', error);
     res.status(500).json({ message: 'Lỗi server khi tải lên file ZIP' });
   }
 });
@@ -780,7 +794,7 @@ app.post('/logout', async (req, res) => {
     }
     res.json({ message: 'Đăng xuất thành công' });
   } catch (error) {
-    console.error('Lỗi khi đăng xuất:', error);
+    console.error('Error in /logout:', error);
     res.status(500).json({ message: 'Lỗi server khi đăng xuất' });
   }
 });
@@ -795,7 +809,7 @@ app.get('/quiz-status', async (req, res) => {
       isAssigned: status.isAssigned || false,
     });
   } catch (error) {
-    console.error('Lỗi khi lấy trạng thái đề thi:', error);
+    console.error('Error in /quiz-status:', error);
     res.status(500).json({ message: 'Lỗi server khi lấy trạng thái đề thi' });
   }
 });
