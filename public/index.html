@@ -1139,69 +1139,184 @@
       saveAdminState();
     }
 
+    async function loadAudio(part) {
+      if (part > 4) {
+        audio.classList.add("hidden");
+        return;
+      }
+      try {
+        const audioRes = await fetch(`/quiz-audio?part=part${part}`);
+        const data = await audioRes.json();
+        if (data.audio) {
+          audioSource.src = data.audio;
+          audio.load();
+        } else {
+          notification.innerText = `Không tìm thấy file nghe cho Part ${part}!`;
+        }
+      } catch (audioError) {
+        console.error("Error loading audio:", audioError);
+        notification.innerText = `Lỗi khi tải file nghe cho Part ${part}!`;
+      }
+    }
+
+    const createQuestion = (id, num, part) => {
+      const div = document.createElement("div");
+      div.className = "bg-gray-50 p-4 rounded border";
+      div.innerHTML = `
+        <label class="font-semibold">Câu ${num} (Part ${part})</label>
+        <div class="mt-2 space-y-2">
+          <label class="block"><input type="radio" name="${id}" value="A" class="mr-2"> A</label>
+          <label class="block"><input type="radio" name="${id}" value="B" class="mr-2"> B</label>
+          <label class="block"><input type="radio" name="${id}" value="C" class="mr-2"> C</label>
+          <label class="block"><input type="radio" name="${id}" value="D" class="mr-2"> D</label>
+        </div>
+      `;
+      return div;
+    };
+
+    const parts = [
+      { id: "section1", count: 6, part: 1 },
+      { id: "section2", count: 25, part: 2 },
+      { id: "section3", count: 39, part: 3 },
+      { id: "section4", count: 30, part: 4 },
+      { id: "section5", count: 30, part: 5 },
+      { id: "section6", count: 16, part: 6 },
+      { id: "section7", count: 54, part: 7 },
+    ];
+    let questionIndex = 1;
+    parts.forEach(({ id, count, part }) => {
+      const section = document.getElementById(id);
+      for (let i = 1; i <= count; i++) {
+        section.appendChild(createQuestion(`q${questionIndex}`, questionIndex, part));
+        questionIndex++;
+      }
+    });
+
+    function startTimer() {
+      timerInterval = setInterval(() => {
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          submitQuiz();
+          return;
+        }
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        timerDisplay.innerText = `Thời gian còn lại: ${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+        timeLeft--;
+      }, 1000);
+    }
+
+    async function loadImages(part) {
+      try {
+        const res = await fetch(`/images?part=${part}`);
+        const images = await res.json();
+        imageDisplay.innerHTML = `<h3 class="text-lg font-semibold mb-2">Part ${part}</h3>`;
+        images.forEach(url => {
+          const img = document.createElement("img");
+          img.src = url;
+          img.className = "w-full max-w-xs mb-4 rounded";
+          imageDisplay.appendChild(img);
+        });
+      } catch (error) {
+        console.error("Error loading images:", error);
+        notification.innerText = `Lỗi khi tải ảnh cho Part ${part}.`;
+      }
+    }
+
+    function nextAdminStep(step) {
+      if (step === 1) {
+        const quizName = document.getElementById("quiz-name").value.trim();
+        if (!quizName) {
+          notification.innerText = "Vui lòng nhập tên đề thi!";
+          return;
+        }
+        const audioFiles = [
+          document.getElementById("audio-file-part1").files[0],
+          document.getElementById("audio-file-part2").files[0],
+          document.getElementById("audio-file-part3").files[0],
+          document.getElementById("audio-file-part4").files[0],
+        ];
+        for (let i = 0; i < audioFiles.length; i++) {
+          if (!audioFiles[i]) {
+            notification.innerText = `Vui lòng tải file nghe cho Part ${i + 1}!`;
+            return;
+          }
+        }
+        hideAllScreens();
+        document.getElementById("admin-step-part1").classList.remove("hidden");
+        notification.innerText = "";
+        currentAdminStep = step;
+        saveAdminState();
+        return;
+      }
+
+      if (step >= 2 && step <= 7) {
+        const part = step - 1;
+        const imagesInput = document.getElementById(`images-part${part}`);
+        if (!imagesInput.files.length) {
+          notification.innerText = `Vui lòng tải ảnh cho Part ${part}!`;
+          return;
+        }
+        const answerKeyInput = document.getElementById(`answer-key-part${part}`).value.trim();
+        if (!answerKeyInput) {
+          notification.innerText = `Vui lòng nhập đáp án cho Part ${part}!`;
+          return;
+        }
+        const answers = answerKeyInput.split(",").map(a => a.trim().toUpperCase());
+        if (answers.length !== partAnswerCounts[part - 1] || !answers.every(a => ["A", "B", "C", "D"].includes(a))) {
+          notification.innerText = `Đáp án Part ${part} phải có đúng ${partAnswerCounts[part - 1]} câu, chỉ chứa A, B, C, D!`;
+          return;
+        }
+      }
+
+      hideAllScreens();
+      document.getElementById(`admin-step-part${step}`).classList.remove("hidden");
+      notification.innerText = "";
+      currentAdminStep = step;
+      saveAdminState();
+    }
+
+    function prevAdminStep(step) {
+      hideAllScreens();
+      if (step === 1) {
+        document.getElementById("admin-step-audio").classList.remove("hidden");
+      } else {
+        document.getElementById(`admin-step-part${step - 1}`).classList.remove("hidden");
+      }
+      notification.innerText = "";
+      currentAdminStep = step - 1;
+      saveAdminState();
+    }
+
     async function saveQuiz() {
-      // Kiểm tra tên đề thi
       const quizName = document.getElementById("quiz-name").value.trim();
       if (!quizName) {
         notification.innerText = "Vui lòng nhập tên đề thi!";
         return;
       }
-      if (quizName.length > 100) {
-        notification.innerText = "Tên đề thi không được dài quá 100 ký tự!";
-        return;
-      }
 
-      // Khởi tạo FormData
       const formData = new FormData();
-
-      // Xử lý file audio
-      const audioInputs = [
-        { id: "audio-file-part1", part: 1 },
-        { id: "audio-file-part2", part: 2 },
-        { id: "audio-file-part3", part: 3 },
-        { id: "audio-file-part4", part: 4 },
+      const audioFiles = [
+        document.getElementById("audio-file-part1").files[0],
+        document.getElementById("audio-file-part2").files[0],
+        document.getElementById("audio-file-part3").files[0],
+        document.getElementById("audio-file-part4").files[0],
       ];
-      for (const { id, part } of audioInputs) {
-        const audioFile = document.getElementById(id).files[0];
-        if (!audioFile) {
-          notification.innerText = `Vui lòng tải file nghe cho Part ${part}!`;
+      for (let i = 0; i < audioFiles.length; i++) {
+        if (!audioFiles[i]) {
+          notification.innerText = `Vui lòng tải file nghe cho Part ${i + 1}!`;
           return;
         }
-        // Kiểm tra định dạng và kích thước file (tối đa 50MB)
-        if (!audioFile.type.startsWith("audio/")) {
-          notification.innerText = `File nghe cho Part ${part} phải là file audio!`;
-          return;
-        }
-        if (audioFile.size > 50 * 1024 * 1024) {
-          notification.innerText = `File nghe cho Part ${part} không được lớn hơn 50MB!`;
-          return;
-        }
-        formData.append(`audio-part${part}`, audioFile);
+        formData.append(`audio-part${i + 1}`, audioFiles[i]);
       }
 
-      // Xử lý ảnh
-      for (let part = 1; part <= 7; part++) {
-        const imageInput = document.getElementById(`images-part${part}`);
-        const files = imageInput.files;
-        if (files.length === 0) {
-          notification.innerText = `Vui lòng tải ít nhất một ảnh cho Part ${part}!`;
-          return;
-        }
-        for (const file of files) {
-          // Kiểm tra định dạng và kích thước file (tối đa 10MB)
-          if (!file.type.startsWith("image/")) {
-            notification.innerText = `File ảnh cho Part ${part} phải là ảnh (jpg, png, v.v.)!`;
-            return;
-          }
-          if (file.size > 10 * 1024 * 1024) {
-            notification.innerText = `File ảnh cho Part ${part} không được lớn hơn 10MB!`;
-            return;
-          }
-          formData.append(`images-part${part}`, file);
+      for (let i = 1; i <= 7; i++) {
+        const files = document.getElementById(`images-part${i}`).files;
+        for (let file of files) {
+          formData.append(`images-part${i}`, file);
         }
       }
 
-      // Xử lý đáp án
       const answerKey = {};
       let questionIndex = 1;
       for (let part = 1; part <= 7; part++) {
@@ -1210,53 +1325,52 @@
           notification.innerText = `Vui lòng nhập đáp án cho Part ${part}!`;
           return;
         }
-        // Xử lý chuỗi đáp án, bỏ khoảng trắng thừa và ký tự không mong muốn
-        const answers = answerKeyInput
-          .split(",")
-          .map(a => a.trim().toUpperCase())
-          .filter(a => a !== "");
-        const expectedCount = partAnswerCounts[part - 1];
-        if (answers.length !== expectedCount) {
-          notification.innerText = `Part ${part} phải có đúng ${expectedCount} đáp án, hiện có ${answers.length}!`;
+        const answers = answerKeyInput.split(",").map(a => a.trim().toUpperCase());
+        if (answers.length !== partAnswerCounts[part - 1]) {
+          notification.innerText = `Part ${part} phải có đúng ${partAnswerCounts[part - 1]} đáp án!`;
           return;
         }
-        for (let i = 0; i < answers.length; i++) {
-          if (!["A", "B", "C", "D"].includes(answers[i])) {
-            notification.innerText = `Đáp án cho Part ${part} phải là A, B, C hoặc D (câu ${i + 1}: ${answers[i]})!`;
-            return;
-          }
+        for (let i = 0; i < partAnswerCounts[part - 1]; i++) {
           answerKey[`q${questionIndex}`] = answers[i];
           questionIndex++;
         }
       }
-
-      // Thêm metadata
-      formData.append("quizName", quizName);
       formData.append("answerKey", JSON.stringify(answerKey));
-      if (user && user.email) {
-        formData.append("createdBy", user.email);
-      } else {
-        notification.innerText = "Lỗi: Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.";
-        return;
-      }
+      formData.append("quizName", quizName);
+      formData.append("createdBy", user.email);
 
-      // Gửi yêu cầu với retry
       try {
-        const res = await fetchWithRetry("/save-quiz", {
+        const res = await fetch("/save-quiz", {
           method: "POST",
           body: formData,
         });
         const result = await res.json();
+        notification.innerText = result.message;
         if (res.ok) {
-          notification.innerText = result.message || "Lưu đề thi thành công!";
           backToQuizList();
-        } else {
-          throw new Error(result.message || `Lỗi server: ${res.status}`);
         }
       } catch (error) {
         console.error("Error saving quiz:", error);
-        notification.innerText = `Lỗi khi lưu đề thi: ${error.message}. Vui lòng kiểm tra dữ liệu và thử lại.`;
+        notification.innerText = "Lỗi khi lưu đề thi. Vui lòng thử lại.";
       }
+    }
+
+    function nextQuizPart(current) {
+      if (current >= 7) return;
+      document.getElementById(`quiz-part${current}`).classList.add("hidden");
+      document.getElementById(`quiz-part${current + 1}`).classList.remove("hidden");
+      currentQuizPart = current;
+      loadImages(current + 1);
+      loadAudio(current + 1);
+    }
+
+    function prevQuizPart(current) {
+      if (current <= 1) return;
+      document.getElementById(`quiz-part${current}`).classList.add("hidden");
+      document.getElementById(`quiz-part${current - 1}`).classList.remove("hidden");
+      currentQuizPart = current - 1;
+      loadImages(current - 1);
+      loadAudio(current - 1);
     }
 
     async function submitQuiz() {
@@ -1357,6 +1471,42 @@
       checkboxes.forEach(cb => cb.checked = selectAll.checked);
     }
 
+    async function fetchDirectResults() {
+      const retries = 3;
+      const delay = 2000;
+      for (let i = 0; i < retries; i++) {
+        try {
+          const res = await fetch("/direct-results");
+          if (!res.ok) {
+            throw new Error(`HTTP error! Status: ${res.status}`);
+          }
+          const results = await res.json();
+          directResultsBody.innerHTML = "";
+          if (results.length === 0) {
+            directResultsBody.innerHTML = "<tr><td colspan='3' class='border p-2 text-center'>Chưa có kết quả nào.</td></tr>";
+          } else {
+            results.forEach(result => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td class="border p-2">${result.username || 'Unknown'}</td>
+                <td class="border p-2">${result.score || 0}</td>
+                <td class="border p-2">${result.submittedAt ? new Date(result.submittedAt).toLocaleString() : 'N/A'}</td>
+              `;
+              directResultsBody.appendChild(tr);
+            });
+          }
+          directResultsTable.classList.remove("hidden");
+          return;
+        } catch (error) {
+          console.error(`Attempt ${i + 1} failed:`, error);
+          if (i === retries - 1) {
+            notification.innerText = "Lỗi khi tải kết quả kiểm tra trực tiếp. Vui lòng kiểm tra kết nối và thử lại.";
+          }
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+
     function handleWebSocketMessage(event) {
       try {
         if (!event.data) {
@@ -1404,7 +1554,6 @@
             loadImages(1);
             startTimer();
             currentQuizPart = 0;
-            updatePartDisplay();
             downloadNotice.classList.add("hidden");
             notification.innerText = "Bài thi đã bắt đầu!";
           }
@@ -1413,10 +1562,7 @@
             submitQuiz();
             notification.innerText = "Bài thi đã kết thúc!";
           } else {
-            isTestEnded = true;
-            endDirectTestBtn.disabled = true;
             fetchDirectResults();
-            saveAdminState();
           }
         } else if (message.type === "error") {
           notification.innerText = message.message;
