@@ -20,7 +20,7 @@
   <!-- Màn hình chào mừng -->
   <div id="welcome-screen" class="container mx-auto p-4">
     <h1 class="text-3xl font-bold mb-4">TOEIC Quiz App</h1>
-    <p id="notification" class="text-red-500 mb-4"></p>
+    <p id="notification-welcome" class="text-red-500 mb-4"></p>
     <div class="space-y-4">
       <button onclick="showAdminLogin()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Đăng nhập Admin</button>
       <button onclick="showStudentLogin()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Đăng nhập Học sinh</button>
@@ -30,7 +30,7 @@
   <!-- Màn hình đăng nhập Admin -->
   <div id="admin-login" class="container mx-auto p-4 hidden">
     <h1 class="text-3xl font-bold mb-4">Đăng nhập Admin</h1>
-    <p id="notification" class="text-red-500 mb-4"></p>
+    <p id="notification-admin" class="text-red-500 mb-4"></p>
     <div id="g_id_onload"
          data-client_id="207656291282-cedkb5qkbeek0s9dbaca2o3ia3svjesv.apps.googleusercontent.com"
          data-callback="handleAdminCredentialResponse"
@@ -44,7 +44,7 @@
   <!-- Màn hình đăng nhập Học sinh -->
   <div id="student-login" class="container mx-auto p-4 hidden">
     <h1 class="text-3xl font-bold mb-4">Đăng nhập Học sinh</h1>
-    <p id="notification" class="text-red-500 mb-4"></p>
+    <p id="notification-student" class="text-red-500 mb-4"></p>
     <form id="student-name-form" class="space-y-4">
       <div>
         <label for="student-name" class="block text-lg">Tên:</label>
@@ -61,7 +61,7 @@
       <h1 class="text-3xl font-bold">Danh sách đề thi</h1>
       <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Đăng xuất</button>
     </div>
-    <p id="notification" class="text-red-500 mb-4"></p>
+    <p id="notification-list" class="text-red-500 mb-4"></p>
     <p id="quiz-status" class="text-lg mb-4"></p>
     <p id="participant-count" class="text-lg mb-4"></p>
     <p id="submitted-count" class="text-lg mb-4"></p>
